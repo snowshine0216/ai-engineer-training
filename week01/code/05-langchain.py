@@ -9,12 +9,13 @@ import datetime
 
 # 加载环境变量
 load_dotenv()
-api_key = os.getenv('V3_API_KEY')
+api_key = os.getenv('OPENAI_API_KEY')
+base_url = os.getenv('OPENAI_API_BASE')
 
 # ========== 1. 初始化 LLM（大语言模型） ==========
 # LangChain 特点：统一的 LLM 接口，支持多种模型提供商
 llm = ChatOpenAI(
-    base_url="https://api.vveai.com/v1",
+    base_url=base_url,
     api_key=api_key,
     model="gpt-4o",
     temperature=0.7  # LangChain 特点：统一的参数配置

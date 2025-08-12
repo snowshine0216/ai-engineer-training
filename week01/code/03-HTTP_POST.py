@@ -21,7 +21,7 @@ payload = json.dumps({
 })
 
 # 从环境变量获取API token
-api_token = os.getenv('V3_API_KEY')  # 或者使用其他环境变量名
+api_token = os.getenv('OPENAI_API_KEY')  # 或者使用其他环境变量名
 
 headers = {
    'Content-Type': 'application/json',

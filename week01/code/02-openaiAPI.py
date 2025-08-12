@@ -3,11 +3,12 @@ from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
-api_key = os.getenv('V3_API_KEY')
+api_key = os.getenv('OPENAI_API_KEY')
+base_url = os.getenv('OPENAI_API_BASE')
 print(f"-- debug -- openai api key is {api_key[0:10]}******")
 
 client = OpenAI(
-    base_url="https://api.vveai.com/v1",
+    base_url=base_url,
     api_key=api_key
 )
 
