@@ -26,5 +26,5 @@ cp .env.example .env
 ```
 然后打开.env，将里面的API KEY替换为自己的KEY，您可以访问：https://api.vveai.com 来获取Key，或使用其他自己喜欢的模型供应商，比如: https://openrouter.ai
 ```
-V3_API_KEY=<V3_API_KEY=replace-me-to-your-own-key>
+OPENAI_API_KEY=replace-me-to-your-own-key>
 ```
