@@ -10,5 +10,6 @@
 
 # 学习周目录
 - 第 1 周：[`week01/README.md`](week01/README.md)
+- 第 2 周：[`week02/README.md`](week02/README.md)
 
 祝学习顺利！

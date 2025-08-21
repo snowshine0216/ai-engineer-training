@@ -203,4 +203,16 @@ __marimo__/
 .streamlit/secrets.toml
 
 # Mac 
-.DS_Store
+*.DS_Store
+
+# AI model training artifacts
+**/training_data/uploaded
+**/training_data/processed
+**/output
+**/logs/
+**/merged_models
+**/quantized_models
+**/plans
+
+week02/requirements.txt
+week02/uv.lock
