@@ -14,6 +14,6 @@
 - 第 3 周：
 - LlamaIndex Notebook实验: [`week03/README.md`](week03/README.md)
 - Local Rag项目: [`week03-local-rag/README.md`](week03-local-rag/README.md)
-- QAnything项目: [`week03-qanything/README_zh.md`](week03-qanything/README_zh.md)
+- QAnything项目解析: [`week03-qanything/README_zh.md`](week03-qanything/README_zh.md)
 
 祝学习顺利！
