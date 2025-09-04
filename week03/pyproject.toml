@@ -16,4 +16,10 @@ dependencies = [
     "ipywidgets",
     "dashscope",
 	"python-dotenv",
+	"neo4j",
+	"neo4j-graphrag",
+	"langchain-community",
+	"datasets",
+	"ragas",
+	"llama-index-vector-stores-elasticsearch",
 ]
