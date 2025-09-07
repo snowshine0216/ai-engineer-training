@@ -5,7 +5,7 @@
 
 # 重要说明
 
-请进入每周目录查看更详细的 README（例如第 1 周的详细说明见下方链接）。
+请进入每周目录查看更详细的 README
 
 
 # 学习周目录
@@ -15,5 +15,6 @@
     - LlamaIndex Notebook实验: [`week03/README.md`](week03/README.md)
     - Local Rag项目: [`week03-local-rag/README.md`](week03-local-rag/README.md)
     - QAnything项目解析: [`week03-qanything/README_zh.md`](week03-qanything/README_zh.md)
+- 第 4 周：[`week04/README.md`](week04/README.md)
 
 祝学习顺利！
