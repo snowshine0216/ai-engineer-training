@@ -19,6 +19,10 @@ try:
 except ImportError:
     IPYTHON_AVAILABLE = False
 
+import os
+import tempfile
+import webbrowser
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -36,15 +40,37 @@ class CodeImprovementPipeline:
         logging.getLogger().setLevel(getattr(logging, self.config.log_level))
     
     def visualize_graph(self):
-        """可视化工作流图"""
-        if IPYTHON_AVAILABLE:
-            try:
-                display(Image(self.assistant.graph.get_graph().draw_mermaid_png()))
-                print("工作流图已显示")
-            except Exception as e:
-                print(f"可视化失败: {e}")
-        else:
-            print("需要在Jupyter环境中运行可视化功能")
+        """生成并保存工作流图"""
+        try:
+            # 生成图像数据
+            png_data = self.assistant.graph.get_graph().draw_mermaid_png()
+            
+            # 检查是否在真正的 Jupyter 环境中
+            in_jupyter = False
+            if IPYTHON_AVAILABLE:
+                try:
+                    from IPython import get_ipython
+                    if get_ipython() is not None and get_ipython().__class__.__name__ == 'ZMQInteractiveShell':
+                        in_jupyter = True
+                except:
+                    pass
+            
+            if in_jupyter:
+                # Jupyter 环境中直接显示
+                display(Image(png_data))
+                print("工作流图已在Jupyter中显示")
+            
+            # 无论在什么环境中，都保存图片文件
+            graph_filename = "workflow_graph.png"
+            with open(graph_filename, 'wb') as f:
+                f.write(png_data)
+            
+            print(f"工作流图已保存为: {graph_filename}")
+            return graph_filename
+                    
+        except Exception as e:
+            print(f"可视化失败: {e}")
+            return None
         
     def run(self, user_request: str, verbose: Optional[bool] = None) -> CodeImprovementResult:
         """运行代码改进流程"""
@@ -216,7 +242,7 @@ def demo_workflow():
     
     test_cases = [
         "创建一个高性能的斐波那契数列计算器，支持缓存和并发",
-        "设计一个简单的计算器类，支持基本四则运算"
+        "设计一个极简的 CPM 系统，支持多用户同时访问"
     ]
     
     pipeline = CodeImprovementPipeline(config)
@@ -238,7 +264,6 @@ def demo_workflow():
         
         if i < len(test_cases):
             print("\n" + "="*50)
-
 
 if __name__ == "__main__":
     demo_workflow()

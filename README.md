@@ -16,5 +16,6 @@
     - Local Rag项目: [`week03-local-rag/README.md`](week03-local-rag/README.md)
     - QAnything项目解析: [`week03-qanything/README_zh.md`](week03-qanything/README_zh.md)
 - 第 4 周：[`week04/README.md`](week04/README.md)
+- 第 5 周：[`week05/README.md`](week05/README.md)
 
 祝学习顺利！

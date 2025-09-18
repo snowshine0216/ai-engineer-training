@@ -32,13 +32,14 @@ class PersonPromptTemplate(StringPromptTemplate):
         skills_text = ", ".join(person_info.skills) if person_info.skills else "无"
         
         prompt = f"""请分析以下人员信息：
-姓名：{person_info.name}
-年龄：{person_info.age}岁
-职业：{person_info.job}
-技能：{skills_text}
+            姓名：{person_info.name}
+            年龄：{person_info.age}岁
+            职业：{person_info.job}
+            技能：{skills_text}
 
-请提供简要的{self.analysis_type}分析。"""
+            请提供简要的{self.analysis_type}分析。"""
         
+        # 添加分析类型
         return prompt
 
 def demo():

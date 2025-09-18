@@ -3,7 +3,7 @@
 展示如何实现一个完整的 LLM 封装器，包含所有模型参数
 """
 from typing import Any, Dict, List, Optional, Union, Iterator
-from langchain_core.language_models.llms import LLM
+from langchain_core.llms.base import LLM
 from langchain_core.callbacks.manager import CallbackManagerForLLMRun
 from pydantic import Field, validator
 import requests
