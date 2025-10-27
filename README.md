@@ -18,5 +18,6 @@
 - 第 4 周：[`week04/README.md`](week04/README.md)
 - 第 5 周：[`week05/README.md`](week05/README.md)
 - 第 6 周：[`week06/README.md`](week06/README.md)
+- 第 7 周：[`week07/README.md`](week07/README.md)
 
 祝学习顺利！
