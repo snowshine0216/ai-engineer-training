@@ -20,4 +20,8 @@
 - 第 6 周：[`week06/README.md`](week06/README.md)
 - 第 7 周：[`week07/README.md`](week07/README.md)
 
+# 优秀作业示例
+- [`homework_examples/`](homework_examples/README.md)
+
+
 祝学习顺利！
