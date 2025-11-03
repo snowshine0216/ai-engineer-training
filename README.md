@@ -19,6 +19,7 @@
 - 第 5 周：[`week05/README.md`](week05/README.md)
 - 第 6 周：[`week06/README.md`](week06/README.md)
 - 第 7 周：[`week07/README.md`](week07/README.md)
+- 第 8 周：[`week08/README.md`](week08/README.md)
 
 # 优秀作业示例
 - [`homework_examples/`](homework_examples/README.md)
