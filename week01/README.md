@@ -7,7 +7,7 @@ cd week01
 不管使用conda与否，我们都统一用uv来做依赖安装，一是因为它速度最快，二是因为比较好管理安装源
 ## 使用Conda的看这里
 ```
-conda create --name ai-engineer-week01 python=3.11
+conda create --name ai-engineer-week01 python=3.13 -y
 conda activate ai-engineer-week01
 pip install uv
 uv pip install -r requirements.txt

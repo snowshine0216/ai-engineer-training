@@ -1,14 +1,27 @@
+import json
 from dataclasses import dataclass
-from typing import Optional
+from pathlib import Path
+from typing import Optional, List
 from llama_index.core import VectorStoreIndex, Settings
 from llama_index.core.node_parser import SentenceWindowNodeParser
 from llama_index.core.postprocessor import MetadataReplacementPostProcessor
+
+# Path to evaluation data
+EVALUATION_DATA_PATH = Path(__file__).parent.parent / "data" / "evaluation.json"
+
+
+@dataclass
+class EvaluationItem:
+    """Data class for a single Q&A evaluation item"""
+    question: str
+    ground_truth: str
 
 
 @dataclass
 class EvaluationResult:
     """Data class for storing evaluation results"""
     splitter_name: str
+    question: str = ""                     # The question being evaluated
     chunk_size: Optional[int] = None
     chunk_overlap: Optional[int] = None
     window_size: Optional[int] = None
@@ -27,6 +40,30 @@ class EvaluationResult:
     retrieved_context: str = ""
 
 
+def load_evaluation_data(file_path: Path = EVALUATION_DATA_PATH) -> List[EvaluationItem]:
+    """
+    Load evaluation questions and ground truth answers from JSON file.
+
+    Args:
+        file_path: Path to the evaluation JSON file
+
+    Returns:
+        List of EvaluationItem objects containing questions and answers
+    """
+    with open(file_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    items = []
+    for item in data.get('items', []):
+        items.append(EvaluationItem(
+            question=item['question'],
+            ground_truth=item['answer']
+        ))
+
+    print(f"Loaded {len(items)} evaluation items from {file_path}")
+    return items
+
+
 def evaluate_splitter(splitter, documents, question, ground_truth, name) -> EvaluationResult:
     """
     Evaluate the effectiveness of different text splitters.
@@ -41,7 +78,7 @@ def evaluate_splitter(splitter, documents, question, ground_truth, name) -> Eval
     Returns:
         EvaluationResult: Evaluation results
     """
-    result = EvaluationResult(splitter_name=name)
+    result = EvaluationResult(splitter_name=name, question=question[:50] + "..." if len(question) > 50 else question)
 
     # 1. Process documents using the splitter
     nodes = splitter.get_nodes_from_documents(documents)
@@ -130,72 +167,113 @@ def evaluate_splitter(splitter, documents, question, ground_truth, name) -> Eval
     return result
 
 
-def run_comparison_experiments(documents, question, ground_truth):
-    """Run comparison experiments and generate result table"""
+def run_comparison_experiments(documents, evaluation_items: List[EvaluationItem] = None):
+    """
+    Run comparison experiments using evaluation items from JSON file.
+
+    Args:
+        documents: List of documents to process
+        evaluation_items: Optional list of EvaluationItem objects.
+                         If None, loads from default evaluation.json path.
+
+    Returns:
+        List of EvaluationResult objects
+    """
     from llama_index.core.node_parser import SentenceSplitter, TokenTextSplitter
+
+    # Load evaluation data if not provided
+    if evaluation_items is None:
+        evaluation_items = load_evaluation_data()
 
     results = []
 
+    # Define splitter configurations
+    splitter_configs = []
+
     # Experiment 1: Different chunk_size values
     for chunk_size in [256, 512, 1024]:
-        splitter = SentenceSplitter(chunk_size=chunk_size, chunk_overlap=50)
-        result = evaluate_splitter(
-            splitter, documents, question, ground_truth,
+        splitter_configs.append((
+            SentenceSplitter(chunk_size=chunk_size, chunk_overlap=50),
             f"Sentence (size={chunk_size})"
-        )
-        results.append(result)
+        ))
 
     # Experiment 2: Different chunk_overlap values
     for overlap in [0, 50, 100, 200]:
-        splitter = SentenceSplitter(chunk_size=512, chunk_overlap=overlap)
-        result = evaluate_splitter(
-            splitter, documents, question, ground_truth,
+        splitter_configs.append((
+            SentenceSplitter(chunk_size=512, chunk_overlap=overlap),
             f"Sentence (overlap={overlap})"
-        )
-        results.append(result)
+        ))
 
     # Experiment 3: Different window_size values (sentence window)
     for window_size in [1, 3, 5]:
-        splitter = SentenceWindowNodeParser.from_defaults(
-            window_size=window_size,
-            window_metadata_key="window",
-            original_text_metadata_key="original_text"
-        )
-        result = evaluate_splitter(
-            splitter, documents, question, ground_truth,
+        splitter_configs.append((
+            SentenceWindowNodeParser.from_defaults(
+                window_size=window_size,
+                window_metadata_key="window",
+                original_text_metadata_key="original_text"
+            ),
             f"SentenceWindow (window={window_size})"
-        )
-        results.append(result)
+        ))
 
     # Experiment 4: TokenTextSplitter with different chunk sizes
     for chunk_size in [32, 64, 128, 256]:
-        splitter = TokenTextSplitter(
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_size // 8,  # 12.5% overlap
-            separator="\n"
-        )
-        result = evaluate_splitter(
-            splitter, documents, question, ground_truth,
+        splitter_configs.append((
+            TokenTextSplitter(
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_size // 8,  # 12.5% overlap
+                separator="\n"
+            ),
             f"Token (size={chunk_size})"
-        )
-        results.append(result)
+        ))
 
     # Experiment 5: TokenTextSplitter with different overlap ratios
     for overlap_ratio in [0, 0.1, 0.25, 0.5]:
         chunk_size = 128
         overlap = int(chunk_size * overlap_ratio)
-        splitter = TokenTextSplitter(
-            chunk_size=chunk_size,
-            chunk_overlap=overlap,
-            separator="\n"
-        )
-        result = evaluate_splitter(
-            splitter, documents, question, ground_truth,
+        splitter_configs.append((
+            TokenTextSplitter(
+                chunk_size=chunk_size,
+                chunk_overlap=overlap,
+                separator="\n"
+            ),
             f"Token (overlap={overlap_ratio*100:.0f}%)"
-        )
-        results.append(result)
+        ))
+
+    # Run experiments for each splitter and each evaluation item
+    total_experiments = len(splitter_configs) * len(evaluation_items)
+    current = 0
+
+    for splitter, name in splitter_configs:
+        for eval_item in evaluation_items:
+            current += 1
+            print(f"\n[{current}/{total_experiments}] Running: {name}")
+            print(f"Question: {eval_item.question[:80]}...")
+
+            result = evaluate_splitter(
+                splitter, documents,
+                eval_item.question,
+                eval_item.ground_truth,
+                name
+            )
+            results.append(result)
 
     return results
+
+
+def run_single_experiment(documents, question: str, ground_truth: str):
+    """
+    Run comparison experiments with a single question (legacy interface).
+
+    Args:
+        documents: List of documents to process
+        question: Test question
+        ground_truth: Ground truth answer
+
+    Returns:
+        List of EvaluationResult objects
+    """
+    eval_item = EvaluationItem(question=question, ground_truth=ground_truth)
+    return run_comparison_experiments(documents, [eval_item])
 
 
 def generate_comparison_table(results: list[EvaluationResult]) -> str:

@@ -27,11 +27,11 @@ class OpenAIEmbeddings(Embeddings):
     def __init__(self, model: str = "text-embedding-3-small"):
         self.model = model
         self.client = client
-        
+
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         response = self.client.embeddings.create(model=self.model, input=texts)
         return [data.embedding for data in response.data]
-    
+
     def embed_query(self, text: str) -> List[float]:
         response = self.client.embeddings.create(model=self.model, input=[text])
         return response.data[0].embedding
@@ -44,7 +44,7 @@ class OpenAIEmbeddings(Embeddings):
 # 在不同的节点（函数）之间传递数据
 # 跟踪整个工作流的执行状态
 # 确保数据的类型安全和一致性
-# 
+#
 # 状态定义明确了整个长文本生成流程中需要传递的数据：
 # original_text: 原始输入文本
 # chunks: 切分后的文本块
@@ -60,6 +60,7 @@ class GenerationState(TypedDict):
     planning_tree: Dict
     final_output: str
     vectorstore: FAISS
+
 
 # =============================================================================
 # 模型初始化
@@ -78,11 +79,11 @@ def split_text(text: str) -> List[str]:
     """
     # 按段落分割，保留非空段落
     paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-    
+
     # 如果段落数已在目标范围内，直接返回
     if 2 <= len(paragraphs) <= 10:
         return paragraphs
-    
+
     # 如果段落太少，按句子进一步分割
     if len(paragraphs) < 2:
         sentences = []
@@ -91,28 +92,28 @@ def split_text(text: str) -> List[str]:
             import re
             sent_list = re.split(r'[。！？]', para)
             sentences.extend([s.strip() for s in sent_list if s.strip()])
-        
+
         # 将句子重新组合成2-4个块
         if len(sentences) >= 4:
             chunk_size = len(sentences) // 3
             chunks = []
             for i in range(0, len(sentences), chunk_size):
-                chunk = "。".join(sentences[i:i+chunk_size])
+                chunk = "。".join(sentences[i:i + chunk_size])
                 if chunk:
                     chunks.append(chunk + "。")
             return chunks[:10]  # 最多10块
         else:
             return sentences
-    
+
     # 如果段落太多，合并相邻段落
     if len(paragraphs) > 10:
         chunk_size = len(paragraphs) // 8  # 目标8块左右
         chunks = []
         for i in range(0, len(paragraphs), chunk_size):
-            chunk_paras = paragraphs[i:i+chunk_size]
+            chunk_paras = paragraphs[i:i + chunk_size]
             chunks.append("\n\n".join(chunk_paras))
         return chunks
-    
+
     return paragraphs
 
 
@@ -122,12 +123,12 @@ def generate_summary(chunk: str) -> str:
     """
     chunk_length = len(chunk)
     target_length = int(chunk_length * 0.3)  # 目标长度为原文的30%
-    
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {
-                "role": "system", 
+                "role": "system",
                 "content": f"""请对以下内容进行高度精简的摘要。要求：
 1. 摘要长度不超过{target_length}字符（约原文的30%）
 2. 只保留最核心的观点和关键信息
@@ -138,16 +139,16 @@ def generate_summary(chunk: str) -> str:
         ],
         temperature=0
     )
-    
+
     summary = response.choices[0].message.content
-    
+
     # 如果摘要仍然过长，进行二次压缩
     if len(summary) > target_length:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {
-                    "role": "system", 
+                    "role": "system",
                     "content": f"请将以下摘要进一步压缩到{target_length}字符以内，只保留最关键的信息："
                 },
                 {"role": "user", "content": summary}
@@ -155,12 +156,12 @@ def generate_summary(chunk: str) -> str:
             temperature=0
         )
         summary = response.choices[0].message.content
-    
+
     return summary
 
 
 def build_planning_tree(summaries: List[str]) -> Dict:
-    combined = "\n\n".join(f"Block {i+1}: {s}" for i, s in enumerate(summaries))
+    combined = "\n\n".join(f"Block {i + 1}: {s}" for i, s in enumerate(summaries))
     prompt = f"""
     请根据以下文本块摘要，生成一份精简的综合报告结构大纲。
     目的：
@@ -190,14 +191,14 @@ def build_planning_tree(summaries: List[str]) -> Dict:
         messages=[{"role": "user", "content": prompt}],
         temperature=0
     )
-    
+
     content = response.choices[0].message.content.strip()
     # 移除可能的markdown代码块标记
     if content.startswith("```json"):
         content = content[7:]
     if content.endswith("```"):
         content = content[:-3]
-    
+
     # 解析JSON，如果失败则使用默认结构
     parsed_json = json.loads(content.strip()) if content.strip().startswith('{') else {
         "title": "文档分析报告",
@@ -249,23 +250,23 @@ def split_node(state: GenerationState) -> GenerationState:
     print("=" * 60)
     print("🔄 [分块阶段] 开始文本切分")
     print("=" * 60)
-    
+
     chunks = split_text(state["original_text"])
     state["chunks"] = chunks
-    
+
     print(f"📊 切分统计:")
     print(f"   原始文本长度: {len(state['original_text'])} 字符")
     print(f"   切分块数: {len(chunks)} 块")
     avg_length = sum(len(chunk) for chunk in chunks) // len(chunks) if chunks else 0
     print(f"   平均块长度: {avg_length} 字符")
-    
+
     print(f"\n📝 切分结果详情:")
     for i, chunk in enumerate(chunks, 1):
         words = len(chunk.split())
         chars = len(chunk)
         preview = chunk[:50] + "..." if len(chunk) > 50 else chunk
         print(f"   块 {i}: {words} 词 ({chars} 字符) | {preview}")
-    
+
     # 验证分块均匀性
     chunk_sizes = [len(chunk) for chunk in chunks]
     size_variance = max(chunk_sizes) - min(chunk_sizes)
@@ -273,7 +274,7 @@ def split_node(state: GenerationState) -> GenerationState:
     print(f"   最大块: {max(chunk_sizes)} 字符")
     print(f"   最小块: {min(chunk_sizes)} 字符")
     print(f"   大小差异: {size_variance} 字符")
-    
+
     print("✅ 分块阶段完成\n")
     return state
 
@@ -291,40 +292,40 @@ def summarize_and_memorize_node(state: GenerationState) -> GenerationState:
     print("=" * 60)
     print("🧠 [记忆阶段] 构建上下文记忆")
     print("=" * 60)
-    
+
     summaries = []
     print("📝 正在生成摘要...")
-    
+
     for i, chunk in enumerate(state["chunks"], 1):
         print(f"   处理块 {i}/{len(state['chunks'])}...", end=" ")
         summary = generate_summary(chunk)
         summaries.append(summary)
-        
+
         # 计算压缩比例
         compression_ratio = len(summary) / len(chunk) * 100
         print("✅")
         print(f"      原文: {len(chunk)} 字符")
         print(f"      摘要: {len(summary)} 字符 (压缩率: {compression_ratio:.1f}%)")
         print(f"      内容: {summary[:60]}...")
-    
+
     state["summaries"] = summaries
-    
+
     print(f"\n🔍 构建向量数据库...")
     state["vectorstore"] = FAISS.from_texts(summaries, embedding=embeddings)
     print("✅ 向量数据库构建完成")
-    
+
     # 显示向量存储的关键信息
     print(f"📊 向量存储统计:")
     print(f"   存储文档数: {len(summaries)}")
     print(f"   向量维度: 1536 (text-embedding-3-small)")
-    
+
     # 提取并显示关键词索引
     print(f"\n🔑 关键词索引:")
     for i, summary in enumerate(summaries, 1):
         # 简单提取关键词（取前几个重要词汇）
         keywords = [word for word in summary.split()[:5] if len(word) > 2]
         print(f"   文档 {i}: {', '.join(keywords)}")
-    
+
     print("✅ 记忆阶段完成\n")
     return state
 
@@ -338,18 +339,18 @@ def planning_node(state: GenerationState) -> GenerationState:
     print("=" * 60)
     print("📋 [规划阶段] 构建精简文章结构")
     print("=" * 60)
-    
+
     print("🤖 正在分析摘要并生成精简结构树...")
     planning_tree = build_planning_tree(state["summaries"])
     state["planning_tree"] = planning_tree
-    
+
     print("✅ 精简结构树生成完成")
     print(f"\n📖 精简文章大纲结构:")
     print(f"   标题: {planning_tree.get('title', '未定义')}")
-    
+
     sections = planning_tree.get('sections', [])
     print(f"   主章节数: {len(sections)}")
-    
+
     for i, section in enumerate(sections, 1):
         section_title = section.get('title', f'第{i}章')
         subsections = section.get('subsections', [])
@@ -359,14 +360,14 @@ def planning_node(state: GenerationState) -> GenerationState:
                 print(f"      {i}.{j} {subsection}")
         else:
             print(f"      (综合段落，无子章节)")
-    
+
     print(f"\n🎯 精简生成策略:")
     # 重新计算段落数：只计算主章节，因为子章节已合并
     content_paragraphs = len(sections)
     print(f"   预计内容段落数: {content_paragraphs} 段")
     print(f"   段落生成方式: 每章节合并为单一综合段落")
     print(f"   ✅ 符合目标范围: 3-5段")
-    
+
     print("✅ 规划阶段完成\n")
     return state
 
@@ -379,10 +380,10 @@ def generate_node(state: GenerationState) -> GenerationState:
     print("=" * 60)
     print("✍️ [生成阶段] 精简段落生成")
     print("=" * 60)
-    
+
     tree = state["planning_tree"]
     content_parts = []
-    
+
     # 添加主标题
     if "title" in tree:
         title = tree["title"]
@@ -391,31 +392,31 @@ def generate_node(state: GenerationState) -> GenerationState:
 
     sections = tree.get("sections", [])
     print(f"🎯 采用精简策略: {len(sections)} 个主章节，无子章节分割")
-    
+
     for i, section in enumerate(sections, 1):
         sec_title = section["title"]
-        
+
         print(f"\n🔄 生成章节 {i}/{len(sections)}: {sec_title}")
         content_parts.append(f"## {sec_title}")
-        
+
         # 生成综合性章节内容（合并所有相关小节）
         context = retrieve_relevant_memory(sec_title, state["vectorstore"])
         print(f"   📚 检索到相关上下文: {len(context)} 字符")
-        
+
         content = generate_section_content(sec_title, context)
         content_parts.append(content)
         print(f"   ✅ 综合章节内容生成完成: {len(content)} 字符")
-        
+
         # 更新记忆库
         if state["vectorstore"] is not None:
             state["vectorstore"].add_texts([content])
             print(f"   💾 内容已添加到记忆库")
 
     state["final_output"] = "\n\n".join(content_parts)
-    
+
     # 计算实际段落数（标题 + 章节标题 + 内容段落）
     content_paragraphs = len([p for p in content_parts if not p.startswith("#")])
-    
+
     print(f"\n📊 精简生成统计:")
     print(f"   总字符数: {len(state['final_output'])}")
     print(f"   主章节数: {len(sections)}")
@@ -423,7 +424,7 @@ def generate_node(state: GenerationState) -> GenerationState:
     print(f"   总组件数: {len(content_parts)}")
     print(f"   ✅ 成功将段落数控制在 {content_paragraphs} 段（目标: 3-5段）")
     print("✅ 生成阶段完成\n")
-    
+
     return state
 
 
@@ -458,7 +459,7 @@ def create_generation_workflow() -> StateGraph:
 if __name__ == "__main__":
     print("启动长文本生成系统")
     print("=" * 60)
-    
+
     sample_text = """
     在孤独与尊严的海洋中：重读《老人与海》的生命启示
 

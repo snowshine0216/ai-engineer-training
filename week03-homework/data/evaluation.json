@@ -1,0 +1,24 @@
+{
+    "items": [
+        {
+            "question": "In the Deutsch-Jozsa setting, how does the quantum-classical separation change when we allow bounded-error probabilistic classical algorithms, and what does the algorithm decide?",
+            "answer": "The exponential separation disappears: a classical probabilistic algorithm can solve the promise problem with a constant number of queries at small error, so there's no quantum speedup in that model. The algorithm determines whether f is constant or balanced."
+        },
+        {
+            "question": "What are the optimal quantum and classical query complexities for the element distinctness problem, and who established the tight lower bounds across ranges?",
+            "answer": "The quantum query complexity is Θ(N^{2/3}). Shi proved a tight lower bound when the range is sufficiently large, and Ambainis and Kutin independently extended it to all functions, matching Θ(N^{2/3})."
+        },
+        {
+            "question": "For triangle finding with oracle access to a graph's adjacency matrix, what are the best known quantum upper bound and the strongest lower bound on query complexity?",
+            "answer": "The best known quantum upper bound is O(N^{5/4}) queries, and the strongest lower bound is Ω(N) queries."
+        },
+        {
+            "question": "Under what conditions does the Harrow-Hassidim-Lloyd (HHL) algorithm achieve exponential speedup, what does it output, and what is its runtime?",
+            "answer": "For sparse systems with low condition number κ, and when the goal is a scalar measurement on the solution vector (not the full vector), HHL outputs an estimate of that scalar in time O(log(N)·κ^2), offering exponential speedup over classical O(N·κ) (or O(N·√κ) for PSD matrices)."
+        },
+        {
+            "question": "In the hidden subgroup framework, which non-abelian groups currently lack efficient quantum algorithms, and what major problems would those yield if solved?",
+            "answer": "The symmetric group and the dihedral group lack efficient algorithms. An efficient algorithm for the symmetric group would yield an efficient algorithm for graph isomorphism; one for the dihedral group would solve certain lattice problems."
+        }
+    ]
+}

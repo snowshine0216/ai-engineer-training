@@ -13,35 +13,35 @@ from config.settings import settings
 class LoggerManager:
     """
     日志管理器
-    
+
     提供统一的日志配置和管理功能
     支持文件输出、控制台输出和结构化日志
     """
-    
+
     _initialized = False
-    
+
     @classmethod
     def initialize(cls, log_dir: Optional[str] = None) -> None:
         """
         初始化日志配置
-        
+
         Args:
             log_dir: 日志文件目录，默认为项目根目录下的logs文件夹
         """
         if cls._initialized:
             return
-        
+
         # 移除默认的日志处理器
         logger.remove()
-        
+
         # 设置日志目录
         if log_dir is None:
             project_root = os.path.dirname(os.path.dirname(__file__))
             log_dir = os.path.join(project_root, "logs")
-        
+
         # 确保日志目录存在
         os.makedirs(log_dir, exist_ok=True)
-        
+
         # 控制台输出配置
         logger.add(
             sys.stdout,
@@ -54,7 +54,7 @@ class LoggerManager:
             backtrace=True,
             diagnose=True
         )
-        
+
         # 应用日志文件配置
         logger.add(
             os.path.join(log_dir, "app_{time:YYYY-MM-DD}.log"),
@@ -67,7 +67,7 @@ class LoggerManager:
             backtrace=True,
             diagnose=True
         )
-        
+
         # 错误日志文件配置
         logger.add(
             os.path.join(log_dir, "error_{time:YYYY-MM-DD}.log"),
@@ -80,7 +80,7 @@ class LoggerManager:
             backtrace=True,
             diagnose=True
         )
-        
+
         # API调用日志文件配置
         logger.add(
             os.path.join(log_dir, "api_{time:YYYY-MM-DD}.log"),
@@ -92,34 +92,34 @@ class LoggerManager:
             encoding="utf-8",
             filter=lambda record: "api_name" in record["extra"]
         )
-        
+
         cls._initialized = True
         logger.info(f"日志系统初始化完成，日志级别: {settings.app.log_level}")
-    
+
     @classmethod
     def get_logger(cls, name: str = None):
         """
         获取日志记录器
-        
+
         Args:
             name: 日志记录器名称
-            
+
         Returns:
             logger: 配置好的日志记录器
         """
         if not cls._initialized:
             cls.initialize()
-        
+
         if name:
             return logger.bind(name=name)
         return logger
 
 
-def log_api_call(api_name: str, method: str, url: str, status_code: Optional[int] = None, 
+def log_api_call(api_name: str, method: str, url: str, status_code: Optional[int] = None,
                  response_time: Optional[float] = None, error: Optional[str] = None):
     """
     记录API调用日志
-    
+
     Args:
         api_name: API名称
         method: HTTP方法
@@ -129,7 +129,7 @@ def log_api_call(api_name: str, method: str, url: str, status_code: Optional[int
         error: 错误信息
     """
     api_logger = logger.bind(api_name=api_name)
-    
+
     log_message = f"{method} {url}"
     if status_code:
         log_message += f" - {status_code}"
@@ -142,11 +142,11 @@ def log_api_call(api_name: str, method: str, url: str, status_code: Optional[int
         api_logger.info(log_message)
 
 
-def log_tool_execution(tool_name: str, input_data: dict, output_data: Optional[dict] = None, 
-                      execution_time: Optional[float] = None, error: Optional[str] = None):
+def log_tool_execution(tool_name: str, input_data: dict, output_data: Optional[dict] = None,
+                       execution_time: Optional[float] = None, error: Optional[str] = None):
     """
     记录工具执行日志
-    
+
     Args:
         tool_name: 工具名称
         input_data: 输入数据
@@ -155,22 +155,22 @@ def log_tool_execution(tool_name: str, input_data: dict, output_data: Optional[d
         error: 错误信息
     """
     tool_logger = logger.bind(tool_name=tool_name)
-    
+
     log_message = f"工具执行: {tool_name}"
     if execution_time:
         log_message += f" - {execution_time:.2f}ms"
-    
+
     if error:
         tool_logger.error(f"{log_message} - ERROR: {error}", input=input_data)
     else:
         tool_logger.info(f"{log_message} - SUCCESS", input=input_data, output=output_data)
 
 
-def log_conversation(session_id: str, user_input: str, assistant_response: str, 
-                    tools_used: Optional[list] = None):
+def log_conversation(session_id: str, user_input: str, assistant_response: str,
+                     tools_used: Optional[list] = None):
     """
     记录对话日志
-    
+
     Args:
         session_id: 会话ID
         user_input: 用户输入
@@ -178,7 +178,7 @@ def log_conversation(session_id: str, user_input: str, assistant_response: str,
         tools_used: 使用的工具列表
     """
     conversation_logger = logger.bind(session_id=session_id)
-    
+
     conversation_logger.info(
         "对话记录",
         user_input=user_input,
