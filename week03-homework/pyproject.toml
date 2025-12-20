@@ -14,6 +14,8 @@ dependencies = [
 	"llama-index-llms-openai-like>=0.5.3",
 	"llama-index-readers-file>=0.5.5",
 	"load-dotenv>=0.1.0",
+	"paddleocr>=3.3.2",
+	"paddlepaddle>=3.2.2",
 	"python-dotenv",
 	# add your dependencies here and run `uv sync` to install them
 ]
