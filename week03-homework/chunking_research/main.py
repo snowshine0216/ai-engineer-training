@@ -9,7 +9,7 @@ parent_dir = current_dir.parent  # week03-homework directory
 sys.path.insert(0, str(parent_dir))  # For 'core' module
 sys.path.insert(0, str(current_dir))  # For 'evaludator' module
 
-from core.llm_service import QWLLM, AzureLLM, QWEMBeddingModel, AzureEMBeddingModel
+from core.llm_service import QWLLM, QWEMBeddingModel
 from evaludator import run_comparison_experiments, generate_comparison_table
 
 # Data directory path
@@ -25,8 +25,8 @@ def config_qw_settings():
     init_settings(QWLLM, QWEMBeddingModel)
 
 
-def config_azure_settings():
-    init_settings(AzureLLM, AzureEMBeddingModel)
+# def config_azure_settings():
+#     init_settings(AzureLLM, AzureEMBeddingModel)
 
 
 def load_documents():
