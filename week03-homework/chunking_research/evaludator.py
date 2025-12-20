@@ -120,6 +120,8 @@ def evaluate_splitter(splitter, documents, question, ground_truth, name) -> Eval
     # 6. Generate answer using LLM
     response = query_engine.query(question)
     result.generated_answer = str(response)
+    print(f"Response: {result.generated_answer}")
+    print(f"Ground Truth: {ground_truth}")
 
     # 7. Use LLM to evaluate answer quality
     evaluation_prompt = f"""
