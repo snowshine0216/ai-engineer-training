@@ -8,6 +8,7 @@ dependencies = [
 	"llama-index>=0.14.10",
 	"llama-index-core>=0.14.10",
 	"llama-index-embeddings-dashscope>=0.4.1",
+	"llama-index-llms-azure-openai>=0.4.2",
 	"llama-index-llms-dashscope>=0.5.1",
 	"llama-index-llms-openai-like>=0.5.3",
 	"llama-index-readers-file>=0.5.5",

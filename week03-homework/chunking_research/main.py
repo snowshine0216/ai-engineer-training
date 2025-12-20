@@ -1,16 +1,19 @@
 import sys
+from pathlib import Path
 from llama_index.core import Settings
 from llama_index.readers.file import PDFReader
-from pathlib import Path
 
-
-# add path into sys root path
+# Add paths to sys.path for module imports
 current_dir = Path(__file__).parent
-sys.path.append(str(current_dir))
+parent_dir = current_dir.parent  # week03-homework directory
+sys.path.insert(0, str(parent_dir))  # For 'core' module
+sys.path.insert(0, str(current_dir))  # For 'evaludator' module
+
 from core.llm_service import QWLLM, AzureLLM, QWEMBeddingModel, AzureEMBeddingModel
 from evaludator import run_comparison_experiments, generate_comparison_table
+
 # Data directory path
-DATA_DIR = current_dir / "data"
+DATA_DIR = parent_dir / "data"
 
 
 def init_settings(llm_model, embed_model):
