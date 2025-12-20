@@ -16,7 +16,7 @@ from typing import Dict
 from dotenv import load_dotenv
 import asyncio
 from autogen_agentchat.agents import AssistantAgent, UserProxyAgent
-from autogen_agentchat.teams import  SelectorGroupChat
+from autogen_agentchat.teams import SelectorGroupChat
 from autogen_agentchat.ui import Console
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
@@ -40,6 +40,8 @@ model_client = OpenAIChatCompletionClient(
 )
 
 # 模拟企业数据库和API接口
+
+
 class EnterpriseDataService:
     """企业数据服务模拟类"""
 
@@ -245,9 +247,9 @@ def create_group_chat():
 
     # 创建一个文本提及终止条件，当消息中包含特定文本时终止
     text_termination = (
-            TextMentionTermination("谢谢您的帮助") |
-            TextMentionTermination("问题已解决") |
-            TextMentionTermination("已解决")
+        TextMentionTermination("谢谢您的帮助") |
+        TextMentionTermination("问题已解决") |
+        TextMentionTermination("已解决")
     )
 
     # 创建一个最大消息数终止条件，作为备用终止条件，防止无限轮询
@@ -260,7 +262,7 @@ def create_group_chat():
         [customer_service_agent, order_query_agent, logistics_agent, inventory_agent, user_agent],
         model_client=model_client,
         termination_condition=termination_condition,
-		selector_prompt="""
+        selector_prompt="""
 		你正在进行一个角色扮演游戏。可用的角色如下：
 		{roles}
 		请阅读以下对话内容，然后从{participants}中选择下一个要发言的角色。只需返回角色名称。

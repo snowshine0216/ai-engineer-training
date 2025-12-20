@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 # 加载环境变量
 load_dotenv()
-api_key= os.getenv('OPENAI_API_KEY')   
+api_key = os.getenv('OPENAI_API_KEY')
 base_url = os.getenv('OPENAI_API_BASE')
 
 # 初始化 OpenAI 客户端
@@ -81,12 +81,12 @@ for i, message in enumerate(messages):
     if isinstance(message, dict):
         role = message.get('role', 'unknown')
         if role == 'user':
-            print(f"{i+1}. 用户输入: {message.get('content', '')}")
+            print(f"{i + 1}. 用户输入: {message.get('content', '')}")
         elif role == 'tool':
             content = json.loads(message.get('content', '{}'))
-            print(f"{i+1}. 工具返回: {content}")
+            print(f"{i + 1}. 工具返回: {content}")
     else:
-        print(f"{i+1}. 助手: 调用工具 {message.tool_calls[0].function.name if message.tool_calls else '无工具调用'}")
+        print(f"{i + 1}. 助手: 调用工具 {message.tool_calls[0].function.name if message.tool_calls else '无工具调用'}")
 
 
 response = client.chat.completions.create(
@@ -97,5 +97,5 @@ response = client.chat.completions.create(
 
 # 5. 模型应该能够给出响应！
 print("最终输出:")
-print(json.dumps(response.model_dump(), indent=2))
+print(json.dumps(response.model_dump(), indent=2, ensure_ascii=False))
 print("\n" + response.choices[0].message.content)

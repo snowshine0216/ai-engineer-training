@@ -1,14 +1,14 @@
 import sys
 from llama_index.core import Settings
-from llama_index.core import VectorStoreIndex
 from llama_index.readers.file import PDFReader
-from core.llm_service import QWLLM, AzureLLM, QWEMBeddingModel, AzureEMBeddingModel
 from pathlib import Path
+
 
 # add path into sys root path
 current_dir = Path(__file__).parent
 sys.path.append(str(current_dir))
-
+from core.llm_service import QWLLM, AzureLLM, QWEMBeddingModel, AzureEMBeddingModel
+from evaludator import run_comparison_experiments, generate_comparison_table
 # Data directory path
 DATA_DIR = current_dir / "data"
 
@@ -42,9 +42,11 @@ def load_documents():
 
 
 def main():
-    # 作业的入口写在这里。你可以就写这个文件，或者扩展多个文件，但是执行入口留在这里。
-    # 在根目录可以通过python -m chunking_research.main 运行
-    pass
+    documents = load_documents()
+    config_qw_settings()
+    results = run_comparison_experiments(documents)
+    table = generate_comparison_table(results)
+    print(table)
 
 
 if __name__ == "__main__":
