@@ -1,6 +1,6 @@
 import os
 from llama_index.llms.openai_like import OpenAILike
-from llama_index.llms.azure import AzureOpenAI
+from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.embeddings.dashscope import DashScopeEmbedding, DashScopeTextEmbeddingModels
 from llama_index.embeddings.azure import AzureOpenAIEmbedding
 from load_dotenv import load_dotenv
