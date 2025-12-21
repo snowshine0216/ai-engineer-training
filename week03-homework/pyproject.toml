@@ -17,5 +17,9 @@ dependencies = [
 	"paddleocr>=3.3.2",
 	"paddlepaddle>=3.2.2",
 	"python-dotenv",
+	# Optional: for OCR visualization
+	"opencv-python>=4.8.0",
+	# Optional: for PDF processing
+	"pdf2image>=1.16.0",
 	# add your dependencies here and run `uv sync` to install them
 ]

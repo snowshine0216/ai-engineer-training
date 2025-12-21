@@ -43,7 +43,7 @@ from llama_index.embeddings.dashscope import DashScopeEmbedding, DashScopeTextEm
 Settings.llm = OpenAILike(
     model="qwen-plus",
     api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
-    api_key=os.getenv("DASHSCOPE_API_KEY"),
+    api_key=os.getenv("DASHSCOPE_API_KEY"), 1
     is_chat_model=True
 )
 
