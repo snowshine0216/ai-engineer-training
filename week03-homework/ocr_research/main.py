@@ -118,30 +118,12 @@ def demo_with_llamaindex(documents):
 
     try:
         from llama_index.core import Settings, VectorStoreIndex
-        from llama_index.llms.openai_like import OpenAILike
-        from llama_index.embeddings.dashscope import (
-            DashScopeEmbedding,
-            DashScopeTextEmbeddingModels
-        )
-
-        # Configure LlamaIndex with DashScope models
-        api_key = os.getenv("DASHSCOPE_API_KEY")
-        if not api_key:
-            print("Warning: DASHSCOPE_API_KEY not set. Skipping LlamaIndex demo.")
-            return
-
-        Settings.llm = OpenAILike(
-            model="qwen-plus",
-            api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
-            api_key=api_key,
-            is_chat_model=True
-        )
-
-        Settings.embed_model = DashScopeEmbedding(
-            model_name=DashScopeTextEmbeddingModels.TEXT_EMBEDDING_V3,
-            embed_batch_size=6,
-            embed_input_length=8192
-        )
+        # Import pre-configured models from core.llm_service
+        from core.llm_service import QWLLM, QWEMBeddingModel
+        
+        # Configure LlamaIndex settings
+        Settings.llm = QWLLM
+        Settings.embed_model = QWEMBeddingModel
 
         # Build index
         index = VectorStoreIndex.from_documents(valid_docs)
