@@ -1,0 +1,45 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: llm-gateway
+  namespace: default
+spec:
+  selector:
+    istio: ingressgateway # use istio default controller
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "*"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: llm-vs
+  namespace: default
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - llm-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /serve
+    route:
+    - destination:
+        host: llm-service-serve-svc.default.svc.cluster.local
+        port:
+          number: 8000
+      weight: 90
+    - destination:
+        host: llm-service-canary-serve-svc.default.svc.cluster.local # Assuming a second canary deployment exists
+        port:
+          number: 8000
+      weight: 10
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 2s
