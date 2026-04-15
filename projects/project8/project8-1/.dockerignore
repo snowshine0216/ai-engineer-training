@@ -1,0 +1,47 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Logs
+*.log
+logs/
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Model weights (usually mounted at runtime, but if copying, ensure we don't copy unintended large files)
+# We explicitely copy specific model directories in Dockerfile, so this is just a safeguard
+*.bin
+*.pt
+*.safetensors
+!qwen-7b/*.bin
+!qwen-7b/*.pt
+!qwen-7b/*.safetensors
+!qwen-7b/*.json
+!qwen-7b/*.txt
