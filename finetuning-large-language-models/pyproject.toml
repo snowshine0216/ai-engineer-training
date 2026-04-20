@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "finetuning-large-language-models"
+version = "0.1.0"
+description = "Fine-tuning LLMs: Lamini, Hugging Face Transformers, and data tooling"
+requires-python = ">=3.14"
+dependencies = [
+    "pandas",
+    "transformers",
+    "datasets",
+    "lamini",
+    "torch",
+    "pyyaml",
+    "jsonlines",
+    "accelerate",
+    "safetensors",
+]
+
+[project.optional-dependencies]
+dev = [
+    "jupyter",
+    "ipykernel",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["finetuning_large_language_models*"]
