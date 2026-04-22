@@ -1,0 +1,101 @@
+[project]
+name = "ai-engineer-training"
+version = "0.1.0"
+description = "Root uv workspace for the AI engineer training repository"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+
+[dependency-groups]
+week01 = ["ai-engineering-week01"]
+week02 = ["week02"]
+week03 = ["week03"]
+week03-homework = ["week03-homework"]
+week03-homework-2 = ["week03-homework-2"]
+week04 = ["week04"]
+week04-homework = ["week04-homework"]
+week05 = ["week05"]
+week05-homework = ["week05-homework"]
+week06 = ["week06"]
+week07 = ["week07"]
+week08 = ["week08"]
+week09 = ["week09"]
+week11-homework = ["week11-homework"]
+finetuning = ["finetuning-large-language-models"]
+
+[tool.uv]
+package = false
+conflicts = [
+    [
+        { group = "week01" },
+        { group = "week02" },
+    ],
+    [
+        { group = "week02" },
+        { group = "week03" },
+    ],
+    [
+        { group = "week02" },
+        { group = "week03-homework" },
+    ],
+    [
+        { group = "week02" },
+        { group = "week03-homework-2" },
+    ],
+    [
+        { group = "week02" },
+        { group = "week04" },
+    ],
+    [
+        { group = "week02" },
+        { group = "week04-homework" },
+    ],
+    [
+        { group = "week02" },
+        { group = "week05" },
+    ],
+    [
+        { group = "week02" },
+        { group = "week05-homework" },
+    ],
+    [
+        { group = "week02" },
+        { group = "week06" },
+    ],
+    [
+        { group = "week02" },
+        { group = "week07" },
+    ],
+    [
+        { group = "week02" },
+        { group = "week08" },
+    ],
+    [
+        { group = "week02" },
+        { group = "week09" },
+    ],
+    [
+        { group = "week02" },
+        { group = "week11-homework" },
+    ],
+    [
+        { group = "week02" },
+        { group = "finetuning" },
+    ],
+]
+
+[tool.uv.sources]
+ai-engineering-week01 = { path = "week01", package = false }
+week02 = { path = "week02", package = false }
+week03 = { path = "week03", package = false }
+week03-homework = { path = "week03-homework", package = false }
+week03-homework-2 = { path = "week03-homework-2", package = false }
+week04 = { path = "week04", package = false }
+week04-homework = { path = "week04-homework", package = false }
+week05 = { path = "week05", package = false }
+week05-homework = { path = "week05-homework", package = false }
+week06 = { path = "week06", package = false }
+week07 = { path = "week07", package = false }
+week08 = { path = "week08", package = false }
+week09 = { path = "week09", package = false }
+week11-homework = { path = "week11-homework", package = false }
+finetuning-large-language-models = { path = "finetuning-large-language-models", package = false }

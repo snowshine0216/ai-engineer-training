@@ -1,11 +1,11 @@
 # Fine-tuning large language models
 
-Python tooling for Lamini, Hugging Face Transformers, and dataset workflows. Requires **Python 3.14+**.
+Python tooling for Lamini, Hugging Face Transformers, and dataset workflows. Requires **Python 3.10-3.13**.
 
 ## Prerequisites
 
 - [uv](https://docs.astral.sh/uv/) installed (`curl -LsSf https://astral.sh/uv/install.sh | sh` or your package manager).
-- Python 3.14 (uv can install it: `uv python install 3.14`).
+- Python 3.12 (recommended; uv can install it: `uv python install 3.12`).
 
 ## Install with uv
 
@@ -16,7 +16,7 @@ From this directory (`finetuning-large-language-models`):
 Creates a virtual environment (if needed), then installs the project in editable mode with **default** dependencies from `pyproject.toml` (no `dev` extra).
 
 ```bash
-uv venv --python 3.14
+uv venv --python 3.12
 uv sync
 ```
 
@@ -31,7 +31,7 @@ uv pip install -e .
 Same as production, but also installs optional **`dev`** extras (`jupyter`, `ipykernel`).
 
 ```bash
-uv venv --python 3.14
+uv venv --python 3.12
 uv sync --extra dev
 ```
 

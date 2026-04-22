@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "finetuning-large-language-models"
 version = "0.1.0"
 description = "Fine-tuning LLMs: Lamini, Hugging Face Transformers, and data tooling"
-requires-python = ">=3.14"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "pandas",
     "transformers",
