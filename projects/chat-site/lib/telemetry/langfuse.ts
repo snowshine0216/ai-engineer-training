@@ -1,17 +1,41 @@
 // lib/telemetry/langfuse.ts
-// Stub — real implementation added in Task 7.
-// This file exists so that the module graph resolves during testing;
-// all callers in tests mock this module via vi.mock().
+import { randomUUID } from "crypto";
 
-import type { ServerEnv } from "@/lib/config/env";
+import type { ServerEnv } from "../config/env";
 
-export type LangfuseTrace = {
+export type LangfuseTraceResult = {
   traceId: string;
   traceUrl: string | null;
   flush: () => Promise<void>;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const createLangfuseTrace = async (_env: ServerEnv, _input: string): Promise<LangfuseTrace> => {
-  return { traceId: "", traceUrl: null, flush: async () => {} };
+const FLUSH_TIMEOUT_MS = 3_000;
+
+export const createLangfuseTrace = async (
+  env: ServerEnv,
+  prompt: string,
+): Promise<LangfuseTraceResult> => {
+  if (!env.LANGFUSE_PUBLIC_KEY || !env.LANGFUSE_SECRET_KEY || !env.LANGFUSE_HOST) {
+    return { traceId: randomUUID(), traceUrl: null, flush: async () => {} };
+  }
+
+  const { Langfuse } = await import("langfuse");
+
+  const lf = new Langfuse({
+    publicKey: env.LANGFUSE_PUBLIC_KEY,
+    secretKey: env.LANGFUSE_SECRET_KEY,
+    baseUrl: env.LANGFUSE_HOST,
+  });
+
+  const trace = lf.trace({ name: "resilient-chat-demo", input: prompt });
+  const traceUrl = `${env.LANGFUSE_HOST}/trace/${trace.id}`;
+
+  const flush = async (): Promise<void> => {
+    await Promise.race([
+      lf.flushAsync(),
+      new Promise<void>((resolve) => setTimeout(resolve, FLUSH_TIMEOUT_MS)),
+    ]).catch(() => {});
+  };
+
+  return { traceId: trace.id, traceUrl, flush };
 };
