@@ -1,98 +1,55 @@
+// tests/lib/ai/openai-provider.test.ts
 import { describe, expect, it, vi } from "vitest";
 
 import {
   applyOpenAIProvider,
-  getOpenAIProviderSettings,
+  getOpenAIClientOptions,
 } from "../../../lib/ai/openai-provider";
 import type { ServerEnv } from "../../../lib/config/env";
 
-const createServerEnv = (
-  overrides: Partial<ServerEnv> = {},
-): ServerEnv => ({
-  OPENAI_BASE_URL: "https://litellm.example.com/v1",
-  OPENAI_API_KEY: "litellm-key",
-  DEFAULT_MODEL: "minimax-2.7-chat",
-  OPENAI_API_MODE: "chat_completions",
-  LANGFUSE_PUBLIC_KEY: "langfuse-public",
-  LANGFUSE_SECRET_KEY: "langfuse-secret",
-  LANGFUSE_HOST: "https://cloud.langfuse.com",
-  OPENAI_AGENTS_ENABLE_TRACING: false,
-  OPENAI_TRACING_API_KEY: undefined,
+const makeEnv = (overrides: Partial<ServerEnv> = {}): ServerEnv => ({
+  OPENAI_BASE_URL: "https://api.example.com/v1",
+  OPENAI_API_KEY: "sk-test",
+  DEFAULT_MODEL: "gpt-4o-mini",
+  DEMO_MODE: false,
+  DEMO_REQUEST_BUDGET: 50,
+  LANGFUSE_PUBLIC_KEY: undefined,
+  LANGFUSE_SECRET_KEY: undefined,
+  LANGFUSE_HOST: undefined,
   ...overrides,
 });
 
-describe("getOpenAIProviderSettings", () => {
-  it("maps the env contract to OpenAI client settings", () => {
-    const settings = getOpenAIProviderSettings(
-      createServerEnv({
-        OPENAI_API_MODE: "responses",
-        OPENAI_AGENTS_ENABLE_TRACING: true,
-        OPENAI_TRACING_API_KEY: "openai-tracing-key",
-      }),
-    );
+describe("getOpenAIClientOptions", () => {
+  it("maps env to baseURL and apiKey", () => {
+    const opts = getOpenAIClientOptions(makeEnv());
 
-    expect(settings).toEqual({
-      clientOptions: {
-        baseURL: "https://litellm.example.com/v1",
-        apiKey: "litellm-key",
-      },
-      apiMode: "responses",
-      tracingEnabled: true,
-      tracingExportApiKey: "openai-tracing-key",
+    expect(opts).toEqual({
+      baseURL: "https://api.example.com/v1",
+      apiKey: "sk-test",
     });
   });
 });
 
 describe("applyOpenAIProvider", () => {
-  it("creates the client and configures the Agents SDK defaults", () => {
+  it("creates the client, sets it as default, locks chat_completions, disables tracing", () => {
     const client = { kind: "openai-client" };
     const createClient = vi.fn(() => client);
     const setDefaultOpenAIClient = vi.fn();
     const setOpenAIAPI = vi.fn();
     const setTracingDisabled = vi.fn();
-    const setTracingExportApiKey = vi.fn();
 
-    const configuredClient = applyOpenAIProvider(
-      getOpenAIProviderSettings(createServerEnv()),
-      {
-        createClient,
-        setDefaultOpenAIClient,
-        setOpenAIAPI,
-        setTracingDisabled,
-        setTracingExportApiKey,
-      },
+    const returned = applyOpenAIProvider(
+      { baseURL: "https://api.example.com/v1", apiKey: "sk-test" },
+      { createClient, setDefaultOpenAIClient, setOpenAIAPI, setTracingDisabled },
     );
 
-    expect(configuredClient).toBe(client);
+    expect(returned).toBe(client);
     expect(createClient).toHaveBeenCalledWith({
-      baseURL: "https://litellm.example.com/v1",
-      apiKey: "litellm-key",
+      baseURL: "https://api.example.com/v1",
+      apiKey: "sk-test",
     });
     expect(setDefaultOpenAIClient).toHaveBeenCalledWith(client);
     expect(setOpenAIAPI).toHaveBeenCalledWith("chat_completions");
     expect(setTracingDisabled).toHaveBeenCalledWith(true);
-    expect(setTracingExportApiKey).not.toHaveBeenCalled();
-  });
-
-  it("enables tracing export when the config requests it", () => {
-    const setTracingExportApiKey = vi.fn();
-
-    applyOpenAIProvider(
-      getOpenAIProviderSettings(
-        createServerEnv({
-          OPENAI_AGENTS_ENABLE_TRACING: true,
-          OPENAI_TRACING_API_KEY: "openai-tracing-key",
-        }),
-      ),
-      {
-        createClient: vi.fn(() => ({ kind: "openai-client" })),
-        setDefaultOpenAIClient: vi.fn(),
-        setOpenAIAPI: vi.fn(),
-        setTracingDisabled: vi.fn(),
-        setTracingExportApiKey,
-      },
-    );
-
-    expect(setTracingExportApiKey).toHaveBeenCalledWith("openai-tracing-key");
   });
 });
