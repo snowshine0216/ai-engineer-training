@@ -15,7 +15,7 @@ print("正在解析文件...")
 # 获取当前脚本的绝对路径
 script_path = Path(__file__).resolve()
 # 获取脚本所在的目录
-script_dir = script_path.parent
+script_dir = script_path.parent.parent
 # 构建docs目录的路径（与脚本同级）
 docs_path = script_dir / "docs"
 
