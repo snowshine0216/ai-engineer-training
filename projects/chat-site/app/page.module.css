@@ -1,0 +1,78 @@
+.page {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  padding: 48px 24px;
+  font-family: var(--font-sans);
+  background:
+    radial-gradient(circle at top, rgba(37, 99, 235, 0.12), transparent 38%),
+    linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+}
+
+.main {
+  display: flex;
+  width: 100%;
+  max-width: 880px;
+  flex-direction: column;
+  gap: 24px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 24px;
+  background-color: rgba(255, 255, 255, 0.88);
+  padding: 48px;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(18px);
+}
+
+.eyebrow {
+  width: fit-content;
+  border-radius: 999px;
+  background-color: #dbeafe;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #1d4ed8;
+}
+
+.intro {
+  display: grid;
+  gap: 16px;
+}
+
+.intro h1 {
+  max-width: 12ch;
+  font-size: 56px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+  color: #0f172a;
+}
+
+.intro p {
+  max-width: 60ch;
+  font-size: 18px;
+  line-height: 1.7;
+  color: #475569;
+}
+
+.milestones {
+  display: grid;
+  gap: 14px;
+  padding-left: 20px;
+  color: #0f172a;
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding: 24px 16px;
+  }
+
+  .main {
+    padding: 32px 24px;
+  }
+
+  .intro h1 {
+    font-size: 40px;
+  }
+}
