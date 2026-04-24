@@ -18,7 +18,9 @@ const requestSchema = z.object({
 });
 
 // Lazy init: provider is initialized on first request so env is validated at
-// call time rather than module evaluation time, keeping tests mock-safe.
+// call time rather than module evaluation time (keeping test mocks safe).
+// initializeOpenAIProvider is synchronous, so no mutex is needed — the flag
+// is set before the event loop can re-enter this path.
 let providerInitialized = false;
 
 export async function POST(req: Request): Promise<Response> {
