@@ -9,6 +9,12 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    exclude: ["**/node_modules/**", "**/tests/e2e/**"],
+    include: ["tests/**/*.test.ts"],
+    exclude: [
+      "**/node_modules/**",
+      "**/tests/e2e/**",
+      "**/.claude/**",
+      "**/.claire/**",
+    ],
   },
 });
