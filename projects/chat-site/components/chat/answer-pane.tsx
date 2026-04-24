@@ -1,9 +1,11 @@
-type AttemptText = { text: string; isDone: boolean };
+import type { AttemptText } from "@/lib/chat/stream-event";
+
+type Status = "idle" | "running" | "done" | "failed" | "interrupted";
 
 type Props = {
   attempts: Record<number, AttemptText>;
   winningAttemptId: number | null;
-  status: string;
+  status: Status;
 };
 
 export function AnswerPane({ attempts, winningAttemptId, status }: Props) {
@@ -42,6 +44,7 @@ export function AnswerPane({ attempts, winningAttemptId, status }: Props) {
           )}
         </div>
       )}
+      {/* MAX_ATTEMPTS=2, so there is at most one discarded attempt. Only [0] is rendered. */}
       {otherAttempts.length > 0 && (
         <details style={{ marginTop: 16 }}>
           <summary

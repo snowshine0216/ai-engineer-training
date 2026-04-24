@@ -8,7 +8,7 @@ export function InterruptionBanner({ message, onRetry }: Props) {
         padding: "12px 16px",
         border: `1px solid var(--warning)`,
         borderRadius: 8,
-        background: "#fffbf0",
+        background: "var(--warning-bg, #fffbf0)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",

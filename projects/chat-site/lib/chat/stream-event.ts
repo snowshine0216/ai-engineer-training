@@ -63,3 +63,6 @@ export type StreamEvent =
   | TraceEvent
   | DoneEvent
   | FailedEvent;
+
+// Shared shape for accumulated text per attempt — used by page.tsx and AnswerPane
+export type AttemptText = { text: string; isDone: boolean };

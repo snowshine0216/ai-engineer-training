@@ -9,9 +9,7 @@ import { AnswerPane } from "@/components/chat/answer-pane";
 import { TimelineRail, type TimelineRow } from "@/components/chat/timeline-rail";
 import { TraceCard } from "@/components/chat/trace-card";
 import { InterruptionBanner } from "@/components/chat/interruption-banner";
-import type { StreamEvent } from "@/lib/chat/stream-event";
-
-type AttemptText = { text: string; isDone: boolean };
+import type { StreamEvent, AttemptText } from "@/lib/chat/stream-event";
 
 type ChatState = {
   status: "idle" | "running" | "done" | "failed" | "interrupted";

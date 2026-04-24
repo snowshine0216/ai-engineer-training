@@ -52,7 +52,7 @@ class DemoInjectedFailure extends Error {
 }
 
 const runAttempt = async (
-  agent: Agent<any, any>,
+  agent: Agent,
   prompt: string,
   attemptId: number,
   demoMode: boolean,
