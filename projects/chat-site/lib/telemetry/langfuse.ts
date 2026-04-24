@@ -21,14 +21,15 @@ export const createLangfuseTrace = async (
 
   const { Langfuse } = await import("langfuse");
 
+  const baseUrl = env.LANGFUSE_HOST.replace(/\/$/, "");
   const lf = new Langfuse({
     publicKey: env.LANGFUSE_PUBLIC_KEY,
     secretKey: env.LANGFUSE_SECRET_KEY,
-    baseUrl: env.LANGFUSE_HOST,
+    baseUrl,
   });
 
   const trace = lf.trace({ name: "resilient-chat-demo", input: prompt });
-  const traceUrl = `${env.LANGFUSE_HOST}/trace/${trace.id}`;
+  const traceUrl = `${baseUrl}/trace/${trace.id}`;
 
   const flush = async (): Promise<void> => {
     await Promise.race([

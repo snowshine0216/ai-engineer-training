@@ -25,6 +25,7 @@ export function Composer({ value, onChange, onSubmit, disabled }: Props) {
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         rows={4}
+        maxLength={4000}
         placeholder="Ask anything — a messy ops prompt works best."
         style={{
           width: "100%",

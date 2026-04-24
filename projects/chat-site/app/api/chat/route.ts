@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const requestSchema = z.object({
-  prompt: z.string().trim().min(1, "prompt must not be empty"),
+  prompt: z.string().trim().min(1, "prompt must not be empty").max(4000, "prompt must not exceed 4000 characters"),
 });
 
 // Best-effort per-process request budget.
@@ -101,10 +101,10 @@ export async function POST(req: Request): Promise<Response> {
         traceUrl: trace.traceUrl,
       });
 
-      controller.close();
+      // Flush before closing so Vercel doesn't terminate before telemetry lands
+      await Promise.resolve(trace.flush()).catch(() => {});
 
-      // Flush telemetry after stream is closed — never blocks the answer
-      Promise.resolve(trace.flush()).catch(() => {});
+      controller.close();
     },
   });
 

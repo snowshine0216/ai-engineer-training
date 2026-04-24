@@ -1,12 +1,15 @@
 type Props = { traceUrl: string | null; status: string };
 
 export function TraceCard({ traceUrl, status }: Props) {
+  const terminalStatuses = new Set(["done", "failed", "interrupted"]);
   const label =
     traceUrl !== null
       ? null
       : status === "idle"
         ? "Trace available when Langfuse is configured."
-        : "Trace pending…";
+        : terminalStatuses.has(status)
+          ? "Trace unavailable."
+          : "Trace pending…";
 
   const safeUrl = traceUrl?.startsWith("https://") ? traceUrl : null;
 

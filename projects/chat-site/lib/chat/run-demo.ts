@@ -27,10 +27,11 @@ const classifyError = (
     return { retryable: false, reason: "Unknown error" };
   }
   const msg = err.message.toLowerCase();
+  const status = (err as { status?: number }).status;
   if (msg.includes("demo_injected_failure")) {
     return { retryable: true, reason: "Provider throttled. Retrying.", code: "rate_limit_exceeded" };
   }
-  if (msg.includes("rate limit") || msg.includes("429")) {
+  if (status === 429 || msg.includes("rate limit") || msg.includes("429")) {
     return { retryable: true, reason: "Provider throttled. Retrying.", code: "rate_limit_exceeded" };
   }
   if (msg.includes("500") || msg.includes("503") || msg.includes("server error")) {

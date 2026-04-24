@@ -246,7 +246,7 @@ export default function Page() {
             Jump to system activity
           </a>
 
-          {!state.winningAttemptId && !isRunning && (
+          {state.winningAttemptId === null && !isRunning && (
             <StarterPrompts
               onSelect={(p) => {
                 dispatch({ type: "SET_DRAFT", prompt: p });
