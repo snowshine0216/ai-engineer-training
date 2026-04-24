@@ -78,3 +78,6 @@ export type StreamEvent =
 
 // Shared shape for accumulated text per attempt — used by page.tsx and AnswerPane
 export type AttemptText = { text: string; isDone: boolean };
+
+// Canonical UI status type — mirrors the terminal states produced by stream events.
+export type Status = "idle" | "running" | "done" | "failed" | "interrupted";

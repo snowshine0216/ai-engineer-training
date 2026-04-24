@@ -1,4 +1,6 @@
-type Props = { traceUrl: string | null; status: string };
+import type { Status } from "@/lib/chat/stream-event";
+
+type Props = { traceUrl: string | null; status: Status };
 
 const terminalStatuses = new Set(["done", "failed", "interrupted"]);
 

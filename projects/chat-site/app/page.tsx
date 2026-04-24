@@ -6,45 +6,11 @@ import { StatusChip } from "@/components/chat/status-chip";
 import { StarterPrompts } from "@/components/chat/starter-prompts";
 import { Composer } from "@/components/chat/composer";
 import { AnswerPane } from "@/components/chat/answer-pane";
-import { TimelineRail, type TimelineRow } from "@/components/chat/timeline-rail";
+import { TimelineRail } from "@/components/chat/timeline-rail";
 import { TraceCard } from "@/components/chat/trace-card";
 import { InterruptionBanner } from "@/components/chat/interruption-banner";
-import type { StreamEvent, AttemptText } from "@/lib/chat/stream-event";
-
-type ChatState = {
-  status: "idle" | "running" | "done" | "failed" | "interrupted";
-  draftPrompt: string;
-  lastPrompt: string;
-  attempts: Record<number, AttemptText>;
-  winningAttemptId: number | null;
-  timelineRows: TimelineRow[];
-  traceUrl: string | null;
-  errorMessage: string | null;
-};
-
-type Action =
-  | { type: "SET_DRAFT"; prompt: string }
-  | { type: "SUBMIT"; prompt: string }
-  | { type: "STREAM_EVENT"; event: StreamEvent }
-  | { type: "INTERRUPTED" };
-
-const toTimelineRow = (event: StreamEvent): TimelineRow | null => {
-  switch (event.kind) {
-    case "accepted":
-      return { id: event.eventId, kind: event.kind, ts: event.ts, label: "Accepted. Running.", variant: "neutral" };
-    case "retrying":
-      return { id: event.eventId, kind: event.kind, ts: event.ts, label: event.reason, variant: "warning" };
-    case "recovered":
-      return { id: event.eventId, kind: event.kind, ts: event.ts, label: event.message, variant: "success" };
-    case "done":
-      return { id: event.eventId, kind: event.kind, ts: event.ts, label: "Done.", variant: "success" };
-    case "failed":
-    case "interrupted":
-      return { id: event.eventId, kind: event.kind, ts: event.ts, label: event.message, variant: "error" };
-    default:
-      return null;
-  }
-};
+import { reducer, initialState, type Action } from "@/lib/chat/page-reducer";
+import type { StreamEvent } from "@/lib/chat/stream-event";
 
 const readNDJSONStream = async (
   reader: ReadableStreamDefaultReader<Uint8Array>,
@@ -70,96 +36,6 @@ const readNDJSONStream = async (
   }
 };
 
-const initialState: ChatState = {
-  status: "idle",
-  draftPrompt: "",
-  lastPrompt: "",
-  attempts: {},
-  winningAttemptId: null,
-  timelineRows: [],
-  traceUrl: null,
-  errorMessage: null,
-};
-
-const reducer = (state: ChatState, action: Action): ChatState => {
-  switch (action.type) {
-    case "SET_DRAFT":
-      return { ...state, draftPrompt: action.prompt };
-
-    case "SUBMIT":
-      return {
-        ...initialState,
-        status: "running",
-        draftPrompt: action.prompt,
-        lastPrompt: action.prompt,
-      };
-
-    case "STREAM_EVENT": {
-      const event = action.event;
-      const row = toTimelineRow(event);
-
-      const timelineRows = row
-        ? [...state.timelineRows, row]
-        : state.timelineRows;
-
-      if (event.kind === "answer_delta") {
-        const prev = state.attempts[event.attemptId] ?? { text: "", isDone: false };
-        return {
-          ...state,
-          timelineRows,
-          winningAttemptId: event.attemptId,
-          attempts: {
-            ...state.attempts,
-            [event.attemptId]: { ...prev, text: prev.text + event.delta },
-          },
-        };
-      }
-
-      if (event.kind === "trace") {
-        return { ...state, timelineRows, traceUrl: event.traceUrl };
-      }
-
-      if (event.kind === "done") {
-        const winId = event.attemptId;
-        const prevAttempt = state.attempts[winId] ?? { text: "", isDone: false };
-        return {
-          ...state,
-          status: "done",
-          timelineRows,
-          winningAttemptId: winId,
-          attempts: { ...state.attempts, [winId]: { ...prevAttempt, isDone: true } },
-        };
-      }
-
-      if (event.kind === "failed") {
-        return {
-          ...state,
-          status: "failed",
-          timelineRows,
-          errorMessage: event.message,
-        };
-      }
-
-      if (event.kind === "interrupted") {
-        return {
-          ...state,
-          status: "interrupted",
-          timelineRows,
-          errorMessage: event.message,
-        };
-      }
-
-      return { ...state, timelineRows };
-    }
-
-    case "INTERRUPTED":
-      return { ...state, status: "interrupted", errorMessage: "Stream interrupted. Partial output preserved." };
-
-    default:
-      return state;
-  }
-};
-
 export default function Page() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const abortRef = useRef<AbortController | null>(null);
@@ -171,13 +47,14 @@ export default function Page() {
 
     dispatch({ type: "SUBMIT", prompt });
 
-    // Guard against stalled streams — 30s without completion triggers INTERRUPTED.
+    // Guard against stalled streams — 65s without completion triggers INTERRUPTED
+    // (5s over the server's 60s maxDuration so the server always wins the race).
     const timeoutId = setTimeout(() => {
       if (!controller.signal.aborted) {
         controller.abort();
         dispatch({ type: "INTERRUPTED" });
       }
-    }, 30_000);
+    }, 65_000);
 
     try {
       const resp = await fetch("/api/chat", {

@@ -1,4 +1,6 @@
-type Props = { status: "idle" | "running" | "done" | "failed" | "interrupted" };
+import type { Status } from "@/lib/chat/stream-event";
+
+type Props = { status: Status };
 
 const STATUS_LABELS: Record<Props["status"], string> = {
   idle: "Ready",

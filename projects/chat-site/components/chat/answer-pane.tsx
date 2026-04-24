@@ -1,6 +1,4 @@
-import type { AttemptText } from "@/lib/chat/stream-event";
-
-type Status = "idle" | "running" | "done" | "failed" | "interrupted";
+import type { AttemptText, Status } from "@/lib/chat/stream-event";
 
 type Props = {
   attempts: Record<number, AttemptText>;

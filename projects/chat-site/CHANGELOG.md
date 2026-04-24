@@ -22,7 +22,7 @@ All notable changes to this project will be documented in this file.
 ### Tests
 - 92 % unit coverage across 10 vitest test files (78 tests)
 - Playwright config + E2E interview-path tests
-- `resetBudgetForTesting()` export for deterministic rate-limit tests
+- `resetBudget()` export for deterministic rate-limit tests
 - Coverage audit: 5 new test files covering route safety net, page reducer, run-demo branches, env validation, Langfuse edge cases
 
 ### Fixes
