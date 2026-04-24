@@ -17,16 +17,11 @@ const requestSchema = z.object({
   prompt: z.string().trim().min(1, "prompt must not be empty").max(4000, "prompt must not exceed 4000 characters"),
 });
 
-// Config is constant per process — initialize the provider once at cold start.
-let providerInitialized = false;
+// Config is constant per process — initialize the provider once at module load.
+initializeOpenAIProvider(getServerEnv());
 
 export async function POST(req: Request): Promise<Response> {
   const env = getServerEnv();
-
-  if (!providerInitialized) {
-    initializeOpenAIProvider(env);
-    providerInitialized = true;
-  }
 
   // Validate body
   let body: unknown;
@@ -104,7 +99,6 @@ export async function POST(req: Request): Promise<Response> {
   return new Response(stream, {
     headers: {
       "Content-Type": "application/x-ndjson",
-      "Transfer-Encoding": "chunked",
       "X-Content-Type-Options": "nosniff",
     },
   });

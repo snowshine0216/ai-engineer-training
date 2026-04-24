@@ -28,7 +28,9 @@ const classifyError = (
     return { retryable: false, reason: "Unknown error" };
   }
   const msg = err.message.toLowerCase();
-  const status = (err as { status?: number }).status;
+  const status = "status" in err && typeof (err as { status: unknown }).status === "number"
+    ? (err as { status: number }).status
+    : undefined;
   if (msg.includes("demo_injected_failure")) {
     return { retryable: true, reason: "Provider throttled. Retrying.", code: "rate_limit_exceeded" };
   }
@@ -59,12 +61,13 @@ const runAttempt = async (
   attemptId: number,
   demoMode: boolean,
   emit: (event: StreamEvent) => void,
+  signal?: AbortSignal,
 ): Promise<void> => {
   if (demoMode && attemptId === 1) {
     throw new DemoInjectedFailure();
   }
 
-  const streamedResult = await run(agent, prompt, { stream: true });
+  const streamedResult = await run(agent, prompt, { stream: true, signal });
   const textStream = streamedResult.toTextStream({ compatibleWithNodeStreams: true });
 
   for await (const chunk of textStream) {
@@ -93,7 +96,7 @@ export const runDemo = async (options: RunDemoOptions): Promise<void> => {
   while (attemptId <= MAX_ATTEMPTS) {
     if (signal?.aborted) break;
     try {
-      await runAttempt(agent, prompt, attemptId, demoMode, emit);
+      await runAttempt(agent, prompt, attemptId, demoMode, emit, signal);
 
       if (attemptId > 1) {
         emit({
