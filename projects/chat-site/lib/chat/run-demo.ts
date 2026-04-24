@@ -76,7 +76,7 @@ const runAttempt = async (
       kind: "answer_delta",
       attemptId,
       ts: Date.now(),
-      delta: chunk,
+      delta: Buffer.isBuffer(chunk) ? chunk.toString("utf8") : chunk,
     });
   }
 
