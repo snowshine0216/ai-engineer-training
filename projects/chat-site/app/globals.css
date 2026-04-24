@@ -1,6 +1,5 @@
 /* app/globals.css */
-@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap");
 
 :root {
   --bg: #f5f7fa;
@@ -45,4 +44,43 @@ a {
 
 a:visited {
   color: #7b3fe4;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  font-size: 14px;
+  background: var(--panel);
+  padding: 6px 12px;
+  border-radius: 4px;
+  z-index: 100;
+}
+
+.skip-link:focus-visible {
+  left: 8px;
+  top: 8px;
+}
+
+.chat-main {
+  display: grid;
+  grid-template-columns: 62fr 38fr;
+  gap: 0;
+  height: calc(100vh - 65px);
+  overflow: hidden;
+}
+
+@media (max-width: 767px) {
+  .chat-main {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .chat-main aside {
+    border-top: 1px solid var(--line);
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1199px) {
+  .chat-main {
+    grid-template-columns: 58fr 42fr;
+  }
 }

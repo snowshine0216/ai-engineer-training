@@ -22,6 +22,12 @@ let requestCount = 0;
 let windowStart = Date.now();
 const WINDOW_MS = 60_000;
 
+/** Exposed for tests only — resets the sliding window to a clean state. */
+export const resetBudgetForTesting = () => {
+  requestCount = 0;
+  windowStart = Date.now();
+};
+
 const checkBudget = (budget: number): boolean => {
   const now = Date.now();
   if (now - windowStart > WINDOW_MS) {
@@ -58,7 +64,7 @@ export async function POST(req: Request): Promise<Response> {
   if (!checkBudget(env.DEMO_REQUEST_BUDGET)) {
     return Response.json(
       { error: "Demo is busy right now. Try again in a minute." },
-      { status: 429 },
+      { status: 429, headers: { "Retry-After": "60" } },
     );
   }
 

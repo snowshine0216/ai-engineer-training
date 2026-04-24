@@ -1,4 +1,4 @@
-import { type FormEvent, useRef } from "react";
+import { type FormEvent } from "react";
 
 type Props = {
   value: string;
@@ -8,8 +8,6 @@ type Props = {
 };
 
 export function Composer({ value, onChange, onSubmit, disabled }: Props) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     const trimmed = value.trim();
@@ -23,7 +21,6 @@ export function Composer({ value, onChange, onSubmit, disabled }: Props) {
       </label>
       <textarea
         id="prompt-input"
-        ref={textareaRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}

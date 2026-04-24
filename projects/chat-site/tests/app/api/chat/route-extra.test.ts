@@ -32,7 +32,7 @@ vi.mock("../../../../lib/telemetry/langfuse", () => ({
   ),
 }));
 
-import { POST } from "../../../../app/api/chat/route";
+import { POST, resetBudgetForTesting } from "../../../../app/api/chat/route";
 import { runDemo as mockRunDemo } from "../../../../lib/chat/run-demo";
 import { getServerEnv as mockGetServerEnv } from "../../../../lib/config/env";
 
@@ -61,6 +61,7 @@ const makeMalformedRequest = () =>
 describe("POST /api/chat — additional coverage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetBudgetForTesting();
   });
 
   it("returns 400 with error key when body is not valid JSON", async () => {
@@ -71,7 +72,7 @@ describe("POST /api/chat — additional coverage", () => {
   });
 
   it("returns 429 when request budget is exhausted", async () => {
-    // Set budget to 1 and fire two requests
+    // resetBudgetForTesting() in beforeEach ensures a clean counter state.
     vi.mocked(mockGetServerEnv).mockReturnValue({
       OPENAI_BASE_URL: "https://api.example.com/v1",
       OPENAI_API_KEY: "sk-test",
@@ -84,23 +85,32 @@ describe("POST /api/chat — additional coverage", () => {
     });
     vi.mocked(mockRunDemo).mockImplementation(async () => {});
 
-    // First request should succeed (consume the budget)
     const resp1 = await POST(makeRequest({ prompt: "first" }));
     expect(resp1.status).toBe(200);
 
-    // Second request should be rate-limited — but the module-level counter from the previous
-    // test run in the same process may already be full. We just need to confirm the path exists.
-    // To reliably test it, set budget to 0 (coerce.number().positive() won't allow 0, so use 1
-    // and accept either 200 or 429 depending on counter state).
-    // Instead, patch budget to a very large number then exhaust it is complex per-process state.
-    // The safest coverage: just confirm budget=1 after first call triggers 429 on second call.
     const resp2 = await POST(makeRequest({ prompt: "second" }));
-    // Could be 429 (budget exhausted) or 200 depending on window reset. Either is valid.
-    // The key thing is that when budget is truly exhausted, the response has the right shape.
-    if (resp2.status === 429) {
-      const body = await resp2.json();
-      expect(body.error).toMatch(/demo is busy/i);
-    }
+    expect(resp2.status).toBe(429);
+    const body = await resp2.json();
+    expect(body.error).toMatch(/demo is busy/i);
+  });
+
+  it("429 response includes Retry-After header", async () => {
+    vi.mocked(mockGetServerEnv).mockReturnValue({
+      OPENAI_BASE_URL: "https://api.example.com/v1",
+      OPENAI_API_KEY: "sk-test",
+      DEFAULT_MODEL: "gpt-4o-mini",
+      DEMO_MODE: false,
+      DEMO_REQUEST_BUDGET: 1,
+      LANGFUSE_PUBLIC_KEY: undefined,
+      LANGFUSE_SECRET_KEY: undefined,
+      LANGFUSE_HOST: undefined,
+    });
+    vi.mocked(mockRunDemo).mockImplementation(async () => {});
+
+    await POST(makeRequest({ prompt: "first" }));
+    const resp = await POST(makeRequest({ prompt: "second" }));
+    expect(resp.status).toBe(429);
+    expect(resp.headers.get("retry-after")).toBe("60");
   });
 
   it("stream still closes with a trace event when runDemo throws", async () => {

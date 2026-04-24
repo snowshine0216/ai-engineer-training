@@ -8,6 +8,8 @@ export function TraceCard({ traceUrl, status }: Props) {
         ? "Trace available when Langfuse is configured."
         : "Trace pending…";
 
+  const safeUrl = traceUrl?.startsWith("https://") ? traceUrl : null;
+
   return (
     <div
       style={{
@@ -19,8 +21,8 @@ export function TraceCard({ traceUrl, status }: Props) {
       }}
     >
       <div style={{ fontWeight: 600, marginBottom: 4, color: "var(--ink)" }}>Trace</div>
-      {traceUrl ? (
-        <a href={traceUrl} target="_blank" rel="noopener noreferrer">
+      {safeUrl ? (
+        <a href={safeUrl} target="_blank" rel="noopener noreferrer">
           Open in Langfuse ↗
         </a>
       ) : (

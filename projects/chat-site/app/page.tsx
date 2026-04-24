@@ -227,15 +227,7 @@ export default function Page() {
         <StatusChip status={state.status} />
       </header>
 
-      <main
-        style={{
-          display: "grid",
-          gridTemplateColumns: "62fr 38fr",
-          gap: 0,
-          height: "calc(100vh - 65px)",
-          overflow: "hidden",
-        }}
-      >
+      <main className="chat-main">
         <section
           aria-label="Conversation"
           style={{
@@ -249,11 +241,7 @@ export default function Page() {
         >
           <a
             href="#system-activity"
-            style={{
-              position: "absolute",
-              left: -9999,
-              fontSize: 14,
-            }}
+            className="skip-link"
           >
             Jump to system activity
           </a>
@@ -306,15 +294,6 @@ export default function Page() {
         </aside>
       </main>
 
-      <style>{`
-        @media (max-width: 767px) {
-          main { grid-template-columns: 1fr !important; height: auto !important; }
-          aside { border-top: 1px solid var(--line); }
-        }
-        @media (min-width: 768px) and (max-width: 1199px) {
-          main { grid-template-columns: 58fr 42fr !important; }
-        }
-      `}</style>
     </>
   );
 }

@@ -42,7 +42,7 @@ const classifyError = (
   if (msg.includes("connection") || msg.includes("network")) {
     return { retryable: true, reason: "Connection error. Retrying.", code: "connection_error" };
   }
-  return { retryable: false, reason: err.message };
+  return { retryable: false, reason: "An unexpected error occurred." };
 };
 
 class DemoInjectedFailure extends Error {
