@@ -96,6 +96,7 @@ a:visited {
     --accent: #58a6ff;
     --success: #3fb950;
     --warning: #d29922;
+    --warning-bg: #2d1f00;
     --error: #f85149;
     --visited: #c292f3;
   }

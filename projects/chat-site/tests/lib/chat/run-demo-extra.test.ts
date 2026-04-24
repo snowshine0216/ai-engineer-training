@@ -150,4 +150,32 @@ describe("runDemo — classifyError branches", () => {
     expect(failedEvent).toBeDefined();
     expect(failedEvent.retryable).toBe(false);
   });
+
+  it("classifies error with numeric status=429 as rate-limited via status property", async () => {
+    // Exercises the 'in' + typeof guard branch (not the msg.includes path)
+    const err = Object.assign(new Error("upstream error"), { status: 429 });
+    vi.mocked(mockRun)
+      .mockRejectedValueOnce(err)
+      .mockResolvedValue(makeStreamedResult(["ok"]) as any);
+
+    await runDemo({ prompt: "hi", model: "m", demoMode: false, emit });
+
+    const retryingEvent = emittedEvents.find((e) => e.kind === "retrying") as Extract<
+      StreamEvent,
+      { kind: "retrying" }
+    >;
+    expect(retryingEvent).toBeDefined();
+    expect(retryingEvent.code).toBe("rate_limit_exceeded");
+  });
+
+  it("stops before first attempt when signal is already aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await runDemo({ prompt: "hi", model: "m", demoMode: false, emit, signal: controller.signal });
+
+    // accepted is emitted before the loop; the loop exits immediately on aborted signal
+    expect(emittedEvents.map((e) => e.kind)).toEqual(["accepted"]);
+    expect(vi.mocked(mockRun)).not.toHaveBeenCalled();
+  });
 });
