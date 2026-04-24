@@ -11,7 +11,7 @@ import { run as mockRun } from "@openai/agents";
 import { runDemo } from "../../../lib/chat/run-demo";
 
 // Returns a fake StreamedRunResult with the given text chunks
-const makeStreamedResult = (textChunks: string[]) => {
+const makeStreamedResult = (textChunks: Array<string | Buffer>) => {
   async function* textGenerator() {
     for (const chunk of textChunks) {
       yield chunk;
@@ -20,7 +20,9 @@ const makeStreamedResult = (textChunks: string[]) => {
   return {
     toTextStream: vi.fn(() => textGenerator()),
     completed: Promise.resolve(),
-    finalOutput: textChunks.join(""),
+    finalOutput: textChunks
+      .map((chunk) => (Buffer.isBuffer(chunk) ? chunk.toString("utf8") : chunk))
+      .join(""),
   };
 };
 
@@ -47,6 +49,25 @@ describe("runDemo", () => {
     expect(emittedEvents[1]).toMatchObject({ kind: "answer_delta", delta: "Hello", attemptId: 1 });
     expect(emittedEvents[2]).toMatchObject({ kind: "answer_delta", delta: " world", attemptId: 1 });
     expect(emittedEvents[3]).toMatchObject({ kind: "done", attemptId: 1 });
+  });
+
+  it("decodes Buffer chunks from the node-compatible text stream before emitting deltas", async () => {
+    vi.mocked(mockRun).mockResolvedValue(
+      makeStreamedResult([Buffer.from("Hello"), Buffer.from(" world")]) as any,
+    );
+
+    await runDemo({ prompt: "hi", model: "test-model", demoMode: false, emit });
+
+    expect(emittedEvents[1]).toMatchObject({
+      kind: "answer_delta",
+      attemptId: 1,
+      delta: "Hello",
+    });
+    expect(emittedEvents[2]).toMatchObject({
+      kind: "answer_delta",
+      attemptId: 1,
+      delta: " world",
+    });
   });
 
   it("emits retrying then recovered when attempt 1 fails with a retryable error", async () => {

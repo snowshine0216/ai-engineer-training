@@ -4,15 +4,15 @@
   "private": true,
   "packageManager": "pnpm@10.33.1",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "dev": "./scripts/with-project-node.sh ./node_modules/.bin/next dev",
+    "build": "./scripts/with-project-node.sh ./node_modules/.bin/next build",
+    "start": "./scripts/with-project-node.sh ./node_modules/.bin/next start",
+    "lint": "./scripts/with-project-node.sh ./node_modules/.bin/eslint",
+    "typecheck": "./scripts/with-project-node.sh ./node_modules/.bin/tsc --noEmit",
+    "test": "./scripts/with-project-node.sh ./node_modules/.bin/vitest run",
+    "test:watch": "./scripts/with-project-node.sh ./node_modules/.bin/vitest",
+    "test:e2e": "./scripts/with-project-node.sh ./node_modules/.bin/playwright test",
+    "test:e2e:ui": "./scripts/with-project-node.sh ./node_modules/.bin/playwright test --ui"
   },
   "engines": {
     "node": ">=22"
