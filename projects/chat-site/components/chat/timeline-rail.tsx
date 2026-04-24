@@ -28,7 +28,6 @@ export function TimelineRail({ rows, status }: Props) {
 
   return (
     <>
-      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }`}</style>
       <ol
       aria-live="polite"
       style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}

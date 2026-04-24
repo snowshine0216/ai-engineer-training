@@ -5,6 +5,7 @@ import { getServerEnv } from "@/lib/config/env";
 import { initializeOpenAIProvider } from "@/lib/ai/openai-provider";
 import { runDemo } from "@/lib/chat/run-demo";
 import { createLangfuseTrace } from "@/lib/telemetry/langfuse";
+import { checkBudget } from "@/lib/chat/budget";
 import type { StreamEvent } from "@/lib/chat/stream-event";
 
 // Required for @openai/agents streaming (uses Node.js Readable)
@@ -16,31 +17,16 @@ const requestSchema = z.object({
   prompt: z.string().trim().min(1, "prompt must not be empty").max(4000, "prompt must not exceed 4000 characters"),
 });
 
-// Best-effort per-process request budget.
-// Vercel serverless resets this per cold start — sufficient for a demo.
-let requestCount = 0;
-let windowStart = Date.now();
-const WINDOW_MS = 60_000;
-
-/** Exposed for tests only — resets the sliding window to a clean state. */
-export const resetBudgetForTesting = () => {
-  requestCount = 0;
-  windowStart = Date.now();
-};
-
-const checkBudget = (budget: number): boolean => {
-  const now = Date.now();
-  if (now - windowStart > WINDOW_MS) {
-    requestCount = 0;
-    windowStart = now;
-  }
-  if (requestCount >= budget) return false;
-  requestCount++;
-  return true;
-};
+// Config is constant per process — initialize the provider once at cold start.
+let providerInitialized = false;
 
 export async function POST(req: Request): Promise<Response> {
   const env = getServerEnv();
+
+  if (!providerInitialized) {
+    initializeOpenAIProvider(env);
+    providerInitialized = true;
+  }
 
   // Validate body
   let body: unknown;
@@ -68,18 +54,19 @@ export async function POST(req: Request): Promise<Response> {
     );
   }
 
-  // Configure @openai/agents SDK with the custom endpoint for this request
-  initializeOpenAIProvider(env);
-
   // Start Langfuse trace (noop if keys are absent)
   const trace = await createLangfuseTrace(env, prompt);
+
+  const abortController = new AbortController();
 
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
 
       const emit = (event: StreamEvent): void => {
-        controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
+        if (!abortController.signal.aborted) {
+          controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
+        }
       };
 
       try {
@@ -88,23 +75,29 @@ export async function POST(req: Request): Promise<Response> {
           model: env.DEFAULT_MODEL,
           demoMode: env.DEMO_MODE,
           emit,
+          signal: abortController.signal,
         });
       } catch {
-        // runDemo already emits failed/interrupted — this is a last-resort safety net
+        // runDemo already emits a failed event — this is a last-resort safety net
       }
 
-      // Emit trace URL as the final frame (Langfuse may still be resolving)
-      emit({
-        eventId: crypto.randomUUID(),
-        kind: "trace",
-        ts: Date.now(),
-        traceUrl: trace.traceUrl,
-      });
+      if (!abortController.signal.aborted) {
+        // Emit trace URL as the final frame (Langfuse may still be resolving)
+        emit({
+          eventId: crypto.randomUUID(),
+          kind: "trace",
+          ts: Date.now(),
+          traceUrl: trace.traceUrl,
+        });
 
-      // Flush before closing so Vercel doesn't terminate before telemetry lands
-      await Promise.resolve(trace.flush()).catch(() => {});
+        // Flush before closing so Vercel doesn't terminate before telemetry lands
+        await Promise.resolve(trace.flush()).catch(() => {});
 
-      controller.close();
+        controller.close();
+      }
+    },
+    cancel() {
+      abortController.abort();
     },
   });
 

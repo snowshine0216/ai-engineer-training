@@ -41,7 +41,6 @@ export function StatusChip({ status }: Props) {
         }}
       />
       {STATUS_LABELS[status]}
-      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }`}</style>
     </span>
   );
 }

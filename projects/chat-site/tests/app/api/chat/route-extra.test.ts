@@ -32,7 +32,8 @@ vi.mock("../../../../lib/telemetry/langfuse", () => ({
   ),
 }));
 
-import { POST, resetBudgetForTesting } from "../../../../app/api/chat/route";
+import { POST } from "../../../../app/api/chat/route";
+import { resetBudget } from "../../../../lib/chat/budget";
 import { runDemo as mockRunDemo } from "../../../../lib/chat/run-demo";
 import { getServerEnv as mockGetServerEnv } from "../../../../lib/config/env";
 
@@ -61,7 +62,7 @@ const makeMalformedRequest = () =>
 describe("POST /api/chat — additional coverage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resetBudgetForTesting();
+    resetBudget();
   });
 
   it("returns 400 with error key when body is not valid JSON", async () => {
@@ -72,7 +73,7 @@ describe("POST /api/chat — additional coverage", () => {
   });
 
   it("returns 429 when request budget is exhausted", async () => {
-    // resetBudgetForTesting() in beforeEach ensures a clean counter state.
+    // resetBudget() in beforeEach ensures a clean counter state.
     vi.mocked(mockGetServerEnv).mockReturnValue({
       OPENAI_BASE_URL: "https://api.example.com/v1",
       OPENAI_API_KEY: "sk-test",

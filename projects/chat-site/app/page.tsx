@@ -46,6 +46,30 @@ const toTimelineRow = (event: StreamEvent): TimelineRow | null => {
   }
 };
 
+const readNDJSONStream = async (
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  dispatch: (action: Action) => void,
+): Promise<void> => {
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const event = JSON.parse(line) as StreamEvent;
+        dispatch({ type: "STREAM_EVENT", event });
+      } catch {
+        // Malformed line — skip
+      }
+    }
+  }
+};
+
 const initialState: ChatState = {
   status: "idle",
   draftPrompt: "",
@@ -147,6 +171,14 @@ export default function Page() {
 
     dispatch({ type: "SUBMIT", prompt });
 
+    // Guard against stalled streams — 30s without completion triggers INTERRUPTED.
+    const timeoutId = setTimeout(() => {
+      if (!controller.signal.aborted) {
+        controller.abort();
+        dispatch({ type: "INTERRUPTED" });
+      }
+    }, 30_000);
+
     try {
       const resp = await fetch("/api/chat", {
         method: "POST",
@@ -171,32 +203,13 @@ export default function Page() {
         return;
       }
 
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const event = JSON.parse(line) as StreamEvent;
-            dispatch({ type: "STREAM_EVENT", event });
-          } catch {
-            // Malformed line — skip
-          }
-        }
-      }
+      await readNDJSONStream(resp.body.getReader(), dispatch);
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
         dispatch({ type: "INTERRUPTED" });
       }
+    } finally {
+      clearTimeout(timeoutId);
     }
   }, []);
 

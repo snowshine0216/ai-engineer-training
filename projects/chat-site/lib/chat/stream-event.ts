@@ -46,11 +46,20 @@ export type DoneEvent = {
   ts: number;
 };
 
-// "failed" is emitted by the server. "interrupted" is client-only (INTERRUPTED action) —
-// included here for reducer convenience; the server never sends kind="interrupted".
+// "failed" is emitted by the server when all retry attempts are exhausted.
 export type FailedEvent = {
   eventId: string;
-  kind: "failed" | "interrupted";
+  kind: "failed";
+  attemptId: number;
+  ts: number;
+  message: string;
+  retryable: boolean;
+};
+
+// "interrupted" is client-only — synthesized in page.tsx, never sent by the server.
+export type InterruptedEvent = {
+  eventId: string;
+  kind: "interrupted";
   attemptId: number;
   ts: number;
   message: string;
@@ -64,7 +73,8 @@ export type StreamEvent =
   | RecoveredEvent
   | TraceEvent
   | DoneEvent
-  | FailedEvent;
+  | FailedEvent
+  | InterruptedEvent;
 
 // Shared shape for accumulated text per attempt — used by page.tsx and AnswerPane
 export type AttemptText = { text: string; isDone: boolean };

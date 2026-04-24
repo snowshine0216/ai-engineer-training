@@ -12,6 +12,7 @@ export type RunDemoOptions = {
   model: string;
   demoMode: boolean;
   emit: (event: StreamEvent) => void;
+  signal?: AbortSignal;
 };
 
 const makeEventId = () => randomUUID();
@@ -80,7 +81,7 @@ const runAttempt = async (
 };
 
 export const runDemo = async (options: RunDemoOptions): Promise<void> => {
-  const { prompt, model, demoMode, emit } = options;
+  const { prompt, model, demoMode, emit, signal } = options;
   const MAX_ATTEMPTS = 2;
 
   const agent = new Agent({ name: "demo-agent", instructions: SYSTEM_PROMPT, model });
@@ -90,6 +91,7 @@ export const runDemo = async (options: RunDemoOptions): Promise<void> => {
   let attemptId = 1;
 
   while (attemptId <= MAX_ATTEMPTS) {
+    if (signal?.aborted) break;
     try {
       await runAttempt(agent, prompt, attemptId, demoMode, emit);
 

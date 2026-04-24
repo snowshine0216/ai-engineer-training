@@ -44,13 +44,12 @@ export function AnswerPane({ attempts, winningAttemptId, status }: Props) {
           )}
         </div>
       )}
-      {/* MAX_ATTEMPTS=2, so there is at most one discarded attempt. Only [0] is rendered. */}
-      {otherAttempts.length > 0 && (
-        <details style={{ marginTop: 16 }}>
+      {otherAttempts.map(([id, attempt]) => (
+        <details key={id} style={{ marginTop: 16 }}>
           <summary
             style={{ fontSize: 13, color: "var(--muted)", cursor: "pointer" }}
           >
-            Attempt {otherAttempts[0][0]} partial output
+            Attempt {id} partial output
           </summary>
           <pre
             style={{
@@ -64,11 +63,10 @@ export function AnswerPane({ attempts, winningAttemptId, status }: Props) {
               color: "var(--muted)",
             }}
           >
-            {otherAttempts[0][1].text || "(no output before retry)"}
+            {attempt.text || "(no output before retry)"}
           </pre>
         </details>
-      )}
-      <style>{`@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }`}</style>
+      ))}
     </div>
   );
 }

@@ -1,7 +1,8 @@
 type Props = { traceUrl: string | null; status: string };
 
+const terminalStatuses = new Set(["done", "failed", "interrupted"]);
+
 export function TraceCard({ traceUrl, status }: Props) {
-  const terminalStatuses = new Set(["done", "failed", "interrupted"]);
   const label =
     traceUrl !== null
       ? null
