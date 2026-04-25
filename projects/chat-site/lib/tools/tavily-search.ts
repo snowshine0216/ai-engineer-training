@@ -11,8 +11,9 @@ const TIMEOUT_MS = 15_000;
 const ENDPOINT = "https://api.tavily.com/search";
 const FALLBACK = "搜索服务暂时不可用，请稍后再试。";
 const SNIPPET_MAX = 150;
+const MAX_RESULTS = 5;
 
-const cache = createTtlCache<string>();
+const cache = createTtlCache<string>({ maxSize: 1000 });
 
 type TavilyResult = { title: string; url: string; content: string };
 type TavilyResponse = { answer?: string; results?: TavilyResult[] };
@@ -57,7 +58,7 @@ const executeImpl = async ({ query }: { query: string }): Promise<string> => {
     query,
     search_depth: "basic",
     include_answer: true,
-    max_results: 5,
+    max_results: MAX_RESULTS,
   });
 
   let res: Response;
@@ -97,7 +98,7 @@ export const tavilySearch: ToolSpec = {
       description:
         "搜索互联网获取最新信息或新闻。Search the web for current information or news.",
       parameters: z.object({
-        query: z.string().describe("The search query in any language"),
+        query: z.string().max(500).describe("The search query in any language"),
       }),
       execute: executeImpl,
     }),

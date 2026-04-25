@@ -19,6 +19,7 @@ export type CityRow = { name: string; adcode: string };
 export type CityMatch = { adcode: string; matched: string };
 
 const DATA: ReadonlyArray<CityRow> = cities as CityRow[];
+const DATA_MAP = new Map<string, CityRow>(DATA.map((r) => [r.name, r]));
 const SUFFIXES = ["市", "县", "区"];
 
 const stripSuffix = (s: string): string => {
@@ -28,8 +29,7 @@ const stripSuffix = (s: string): string => {
   return s;
 };
 
-const findExact = (q: string): CityRow | undefined =>
-  DATA.find((row) => row.name === q);
+const findExact = (q: string): CityRow | undefined => DATA_MAP.get(q);
 
 /** Try appending 市/县/区 to q and look for an exact match. */
 const findExactWithSuffix = (q: string): CityRow | undefined => {
@@ -52,27 +52,44 @@ const findSubstring = (q: string): CityRow | undefined =>
 
 const toMatch = (row: CityRow): CityMatch => ({ adcode: row.adcode, matched: row.name });
 
+// Memoize the full lookup so repeated identical inputs skip all scans.
+const lookupMemo = new Map<string, CityMatch | undefined>();
+
 export const lookupAdcode = (input: string): CityMatch | undefined => {
   const q = input.trim();
   if (!q) return undefined;
 
+  if (lookupMemo.has(q)) return lookupMemo.get(q);
+
   const exact = findExact(q);
-  if (exact) return toMatch(exact);
+  if (exact) {
+    lookupMemo.set(q, toMatch(exact));
+    return lookupMemo.get(q);
+  }
 
   const stripped = stripSuffix(q);
   if (stripped !== q) {
     const exactStripped = findExact(stripped);
-    if (exactStripped) return toMatch(exactStripped);
+    if (exactStripped) {
+      lookupMemo.set(q, toMatch(exactStripped));
+      return lookupMemo.get(q);
+    }
 
     const withSuffixStripped = findExactWithSuffix(stripped);
-    if (withSuffixStripped) return toMatch(withSuffixStripped);
+    if (withSuffixStripped) {
+      lookupMemo.set(q, toMatch(withSuffixStripped));
+      return lookupMemo.get(q);
+    }
   }
 
   const withSuffix = findExactWithSuffix(q);
-  if (withSuffix) return toMatch(withSuffix);
+  if (withSuffix) {
+    lookupMemo.set(q, toMatch(withSuffix));
+    return lookupMemo.get(q);
+  }
 
   const sub = findSubstring(q);
-  if (sub) return toMatch(sub);
-
-  return undefined;
+  const result = sub ? toMatch(sub) : undefined;
+  lookupMemo.set(q, result);
+  return result;
 };

@@ -9,7 +9,8 @@ export type TtlCache<V> = {
 
 type Entry<V> = { value: V; expiresAt: number };
 
-export const createTtlCache = <V>(): TtlCache<V> => {
+export const createTtlCache = <V>(options?: { maxSize?: number }): TtlCache<V> => {
+  const maxSize = options?.maxSize ?? Infinity;
   const store = new Map<string, Entry<V>>();
 
   const get = (key: string): V | undefined => {
@@ -24,6 +25,11 @@ export const createTtlCache = <V>(): TtlCache<V> => {
 
   const set = (key: string, value: V, ttlMs: number): void => {
     store.set(key, { value, expiresAt: Date.now() + ttlMs });
+    if (store.size > maxSize) {
+      // Evict the oldest entry (Map preserves insertion order)
+      const oldest = store.keys().next().value;
+      if (oldest !== undefined) store.delete(oldest);
+    }
   };
 
   const del = (key: string): void => {

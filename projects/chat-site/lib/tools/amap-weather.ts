@@ -12,7 +12,7 @@ const TIMEOUT_MS = 10_000;
 const ENDPOINT = "https://restapi.amap.com/v3/weather/weatherInfo";
 const FALLBACK = "天气服务暂时不可用，请稍后再试。";
 
-const cache = createTtlCache<string>();
+const cache = createTtlCache<string>({ maxSize: 200 });
 
 type Lives = {
   province: string; city: string; weather: string; temperature: string;
@@ -126,7 +126,7 @@ export const amapWeather: ToolSpec = {
       description:
         "查询中国城市的天气。Look up current weather (or multi-day forecast) for a Chinese city by name.",
       parameters: z.object({
-        city: z.string().describe("Chinese city name, e.g. 北京, 上海, 深圳"),
+        city: z.string().max(100).describe("Chinese city name, e.g. 北京, 上海, 深圳"),
         forecast: z
           .boolean()
           .optional()
