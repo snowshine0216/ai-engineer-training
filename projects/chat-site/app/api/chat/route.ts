@@ -8,7 +8,7 @@ import { getAgent } from "@/lib/agents";
 import { runAgent } from "@/lib/chat/run-agent";
 import { classifyError } from "@/lib/chat/errors";
 import { createLangfuseTrace } from "@/lib/telemetry/langfuse";
-import { checkBudget } from "@/lib/chat/budget";
+import { checkBudget, BUDGET_WINDOW_SECONDS } from "@/lib/chat/budget";
 import { getLogger } from "@/lib/logging";
 import type { ConversationMessage } from "@/lib/chat/history";
 import type { StreamEvent } from "@/lib/chat/stream-event";
@@ -70,7 +70,7 @@ export async function POST(req: Request): Promise<Response> {
   if (!checkBudget(env.DEMO_REQUEST_BUDGET)) {
     return Response.json(
       { error: "Server is busy right now. Try again in a minute." },
-      { status: 429, headers: { "Retry-After": "60" } },
+      { status: 429, headers: { "Retry-After": String(BUDGET_WINDOW_SECONDS) } },
     );
   }
 

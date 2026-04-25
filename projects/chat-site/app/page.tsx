@@ -5,7 +5,7 @@ import { Composer } from "@/components/chat/composer";
 import { StarterPrompts } from "@/components/chat/starter-prompts";
 import { AgentPicker } from "@/components/chat/agent-picker";
 import { MessageList } from "@/components/chat/message-list";
-import { reducer, initialState, type Action } from "@/lib/chat/page-reducer";
+import { reducer, initialState, type Action, type UiMessage } from "@/lib/chat/page-reducer";
 import type { StreamEvent } from "@/lib/chat/stream-event";
 import type { PublicAgent } from "@/lib/agents/public";
 

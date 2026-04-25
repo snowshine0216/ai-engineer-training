@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { MessageBubble } from "./message-bubble";
 import type { UiMessage } from "@/lib/chat/page-reducer";
 import type { PublicAgent } from "@/lib/agents/public";
@@ -17,7 +17,7 @@ const PIN_THRESHOLD_PX = 80;
 
 export function MessageList({ messages, agents, status, retrying, thinkingDurationMs, onRetry }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const agentsById = Object.fromEntries(agents.map((a) => [a.id, a]));
+  const agentsById = useMemo(() => Object.fromEntries(agents.map((a) => [a.id, a])), [agents]);
 
   useEffect(() => {
     const el = containerRef.current;

@@ -29,7 +29,7 @@ export function MessageBubble({
           style={{
             maxWidth: "78%",
             background: "var(--accent)",
-            color: "#fff",
+            color: "var(--on-accent)",
             padding: "10px 14px",
             borderRadius: 12,
             whiteSpace: "pre-wrap",
