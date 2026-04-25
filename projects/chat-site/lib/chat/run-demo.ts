@@ -2,6 +2,7 @@
 import { Agent, run } from "@openai/agents";
 import { randomUUID } from "crypto";
 
+import { getRunner } from "../ai/openai-provider";
 import type { StreamEvent } from "./stream-event";
 
 const SYSTEM_PROMPT =
@@ -15,13 +16,7 @@ export type RunDemoOptions = {
   signal?: AbortSignal;
 };
 
-const makeEventId = () => randomUUID();
-
-/*
- * Maps known error signatures to retry decisions.
- * Non-retryable errors (auth failures, bad requests) surface immediately as failed.
- */
-const classifyError = (
+export const classifyError = (
   err: unknown,
 ): { retryable: boolean; reason: string; code?: string } => {
   if (!(err instanceof Error)) {
@@ -61,6 +56,8 @@ class DemoInjectedFailure extends Error {
   }
 }
 
+const makeEventId = () => randomUUID();
+
 const runAttempt = async (
   agent: Agent,
   prompt: string,
@@ -73,7 +70,9 @@ const runAttempt = async (
     throw new DemoInjectedFailure();
   }
 
-  const streamedResult = await run(agent, prompt, { stream: true, signal });
+  const runner = getRunner();
+  console.log("[run-demo] using explicit runner for attempt", attemptId);
+  const streamedResult = await runner.run(agent, prompt, { stream: true, signal });
   const textStream = streamedResult.toTextStream({ compatibleWithNodeStreams: true });
 
   for await (const chunk of textStream) {
@@ -118,6 +117,24 @@ export const runDemo = async (options: RunDemoOptions): Promise<void> => {
       emit({ eventId: makeEventId(), kind: "done", attemptId, ts: Date.now() });
       return;
     } catch (err) {
+      // --- debug ---
+      console.error("[run-demo] ── attempt", attemptId, "failed ──");
+      console.error("[run-demo]   model:", model);
+      if (err instanceof Error) {
+        console.error("[run-demo]   error:", err.message);
+        console.error("[run-demo]   name:", err.constructor.name);
+        if ("status" in err) console.error("[run-demo]   status:", (err as { status: unknown }).status);
+        if ("error" in err) console.error("[run-demo]   body:", JSON.stringify((err as { error: unknown }).error));
+        if ("url" in err) console.error("[run-demo]   url:", (err as { url: unknown }).url);
+        if ("headers" in err) {
+          const h = (err as { headers: unknown }).headers;
+          if (h && typeof h === "object") console.error("[run-demo]   response-headers:", JSON.stringify(h));
+        }
+      } else {
+        console.error("[run-demo]   raw:", err);
+      }
+      console.error("[run-demo] ────────────");
+      // --- end debug ---
       const { retryable, reason, code } = classifyError(err);
 
       if (retryable && attemptId < MAX_ATTEMPTS) {

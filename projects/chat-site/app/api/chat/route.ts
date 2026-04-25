@@ -1,9 +1,10 @@
 // app/api/chat/route.ts
 import { z } from "zod";
+import { randomUUID } from "crypto";
 
 import { getServerEnv } from "@/lib/config/env";
-import { initializeOpenAIProvider } from "@/lib/ai/openai-provider";
-import { runDemo } from "@/lib/chat/run-demo";
+import { initializeOpenAIProvider, validateProviderAuth } from "@/lib/ai/openai-provider";
+import { runDemo, classifyError } from "@/lib/chat/run-demo";
 import { createLangfuseTrace } from "@/lib/telemetry/langfuse";
 import { checkBudget } from "@/lib/chat/budget";
 import type { StreamEvent } from "@/lib/chat/stream-event";
@@ -56,6 +57,26 @@ export async function POST(req: Request): Promise<Response> {
     );
   }
 
+  // Pre-flight auth check: make a real HTTP call (max_tokens:1) BEFORE committing
+  // to HTTP 200. This surfaces 401/403/404 as proper HTTP errors instead of burying
+  // them in the NDJSON stream body.
+  //
+  // Skipped in demo mode — the first attempt is a deliberately injected failure,
+  // the retry logic in the stream handles it.
+  if (!env.DEMO_MODE) {
+    try {
+      await validateProviderAuth(env);
+    } catch (err) {
+      const { retryable, reason, code } = classifyError(err);
+      if (!retryable) {
+        const status = code === "auth_error" ? 401 : code === "not_found" ? 404 : 500;
+        return Response.json({ error: reason, code }, { status });
+      }
+      // Retryable pre-flight error (rate limit, server error): fall through to the
+      // stream — runDemo's retry logic will handle it.
+    }
+  }
+
   // Start Langfuse trace (noop if keys are absent)
   const trace = await createLangfuseTrace(env, prompt);
 
@@ -79,14 +100,23 @@ export async function POST(req: Request): Promise<Response> {
           emit,
           signal: abortController.signal,
         });
-      } catch {
-        // runDemo already emits a failed event — this is a last-resort safety net
+      } catch (err) {
+        // Unexpected throw from runDemo — emit a failed event rather than silently closing.
+        const { reason } = classifyError(err);
+        emit({
+          eventId: randomUUID(),
+          kind: "failed",
+          attemptId: 1,
+          ts: Date.now(),
+          message: reason || "An unexpected error occurred.",
+          retryable: false,
+        });
       }
 
       if (!abortController.signal.aborted) {
         // Emit trace URL as the final frame (Langfuse may still be resolving)
         emit({
-          eventId: crypto.randomUUID(),
+          eventId: randomUUID(),
           kind: "trace",
           ts: Date.now(),
           traceUrl: trace.traceUrl,

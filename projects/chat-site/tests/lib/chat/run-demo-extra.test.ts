@@ -4,12 +4,17 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { StreamEvent } from "../../../lib/chat/stream-event";
 
+const mockRunnerRun = vi.fn();
+
 vi.mock("@openai/agents", () => ({
   Agent: vi.fn().mockImplementation(() => ({})),
   run: vi.fn(),
 }));
 
-import { run as mockRun } from "@openai/agents";
+vi.mock("../../../lib/ai/openai-provider", () => ({
+  getRunner: () => ({ run: mockRunnerRun }),
+}));
+
 import { runDemo } from "../../../lib/chat/run-demo";
 
 const makeStreamedResult = (textChunks: string[]) => {
@@ -37,7 +42,7 @@ describe("runDemo — classifyError branches", () => {
   });
 
   it("classifies 500 server error as retryable and retries once", async () => {
-    vi.mocked(mockRun)
+    mockRunnerRun
       .mockRejectedValueOnce(new Error("internal 500 server error"))
       .mockResolvedValue(makeStreamedResult(["ok"]) as any);
 
@@ -56,7 +61,7 @@ describe("runDemo — classifyError branches", () => {
   });
 
   it("classifies 503 server error as retryable", async () => {
-    vi.mocked(mockRun)
+    mockRunnerRun
       .mockRejectedValueOnce(new Error("service unavailable 503"))
       .mockResolvedValue(makeStreamedResult(["ok"]) as any);
 
@@ -70,7 +75,7 @@ describe("runDemo — classifyError branches", () => {
   });
 
   it("classifies timeout error as retryable", async () => {
-    vi.mocked(mockRun)
+    mockRunnerRun
       .mockRejectedValueOnce(new Error("request timed out after 30s"))
       .mockResolvedValue(makeStreamedResult(["ok"]) as any);
 
@@ -84,7 +89,7 @@ describe("runDemo — classifyError branches", () => {
   });
 
   it("classifies connection error as retryable", async () => {
-    vi.mocked(mockRun)
+    mockRunnerRun
       .mockRejectedValueOnce(new Error("network connection refused"))
       .mockResolvedValue(makeStreamedResult(["ok"]) as any);
 
@@ -99,7 +104,7 @@ describe("runDemo — classifyError branches", () => {
 
   it("classifies non-Error throws as non-retryable and emits failed", async () => {
     // Simulate a non-Error throw (plain string)
-    vi.mocked(mockRun).mockRejectedValue("something weird happened");
+    mockRunnerRun.mockRejectedValue("something weird happened");
 
     await runDemo({ prompt: "hi", model: "m", demoMode: false, emit });
 
@@ -112,7 +117,7 @@ describe("runDemo — classifyError branches", () => {
 
   it("respects MAX_ATTEMPTS=2: does not retry beyond attempt 2", async () => {
     // Both calls fail with retryable errors
-    vi.mocked(mockRun).mockRejectedValue(new Error("rate limit exceeded"));
+    mockRunnerRun.mockRejectedValue(new Error("rate limit exceeded"));
 
     await runDemo({ prompt: "hi", model: "m", demoMode: false, emit });
 
@@ -120,11 +125,11 @@ describe("runDemo — classifyError branches", () => {
     // accepted → retrying (attempt 1→2) → failed (attempt 2)
     expect(kinds).toEqual(["accepted", "retrying", "failed"]);
     // run() should only have been called at most twice (for attempt 1 and 2)
-    expect(vi.mocked(mockRun).mock.calls.length).toBeLessThanOrEqual(2);
+    expect(mockRunnerRun.mock.calls.length).toBeLessThanOrEqual(2);
   });
 
   it("emits retrying with nextAttemptId = attemptId + 1", async () => {
-    vi.mocked(mockRun)
+    mockRunnerRun
       .mockRejectedValueOnce(new Error("rate limit exceeded"))
       .mockResolvedValue(makeStreamedResult([]) as any);
 
@@ -139,7 +144,7 @@ describe("runDemo — classifyError branches", () => {
   });
 
   it("failed event has retryable=false regardless of error type", async () => {
-    vi.mocked(mockRun).mockRejectedValue(new Error("rate limit exceeded"));
+    mockRunnerRun.mockRejectedValue(new Error("rate limit exceeded"));
 
     await runDemo({ prompt: "hi", model: "m", demoMode: false, emit });
 
@@ -154,7 +159,7 @@ describe("runDemo — classifyError branches", () => {
   it("classifies error with numeric status=429 as rate-limited via status property", async () => {
     // Exercises the 'in' + typeof guard branch (not the msg.includes path)
     const err = Object.assign(new Error("upstream error"), { status: 429 });
-    vi.mocked(mockRun)
+    mockRunnerRun
       .mockRejectedValueOnce(err)
       .mockResolvedValue(makeStreamedResult(["ok"]) as any);
 
@@ -176,12 +181,12 @@ describe("runDemo — classifyError branches", () => {
 
     // accepted is emitted before the loop; the loop exits immediately on aborted signal
     expect(emittedEvents.map((e) => e.kind)).toEqual(["accepted"]);
-    expect(vi.mocked(mockRun)).not.toHaveBeenCalled();
+    expect(mockRunnerRun).not.toHaveBeenCalled();
   });
 
   it("classifies status=401 as auth_error with a meaningful message", async () => {
     const err = Object.assign(new Error("401 Incorrect API key provided"), { status: 401 });
-    vi.mocked(mockRun).mockRejectedValue(err);
+    mockRunnerRun.mockRejectedValue(err);
 
     await runDemo({ prompt: "hi", model: "m", demoMode: false, emit });
 
@@ -194,7 +199,7 @@ describe("runDemo — classifyError branches", () => {
 
   it("classifies status=403 as auth_error", async () => {
     const err = Object.assign(new Error("403 Forbidden"), { status: 403 });
-    vi.mocked(mockRun).mockRejectedValue(err);
+    mockRunnerRun.mockRejectedValue(err);
 
     await runDemo({ prompt: "hi", model: "m", demoMode: false, emit });
 
@@ -204,7 +209,7 @@ describe("runDemo — classifyError branches", () => {
 
   it("classifies status=404 as not_found with a meaningful message", async () => {
     const err = Object.assign(new Error("404 The model does not exist"), { status: 404 });
-    vi.mocked(mockRun).mockRejectedValue(err);
+    mockRunnerRun.mockRejectedValue(err);
 
     await runDemo({ prompt: "hi", model: "m", demoMode: false, emit });
 
@@ -216,7 +221,7 @@ describe("runDemo — classifyError branches", () => {
   });
 
   it("fallback uses err.message for unclassified errors", async () => {
-    vi.mocked(mockRun).mockRejectedValue(new Error("Something completely unexpected happened"));
+    mockRunnerRun.mockRejectedValue(new Error("Something completely unexpected happened"));
 
     await runDemo({ prompt: "hi", model: "m", demoMode: false, emit });
 

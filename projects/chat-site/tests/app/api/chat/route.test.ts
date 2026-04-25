@@ -18,11 +18,16 @@ vi.mock("../../../../lib/config/env", () => ({
 
 vi.mock("../../../../lib/ai/openai-provider", () => ({
   initializeOpenAIProvider: vi.fn(),
+  validateProviderAuth: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../../../../lib/chat/run-demo", () => ({
-  runDemo: vi.fn(),
-}));
+vi.mock("../../../../lib/chat/run-demo", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../../lib/chat/run-demo")>();
+  return {
+    runDemo: vi.fn(),
+    classifyError: actual.classifyError,
+  };
+});
 
 vi.mock("../../../../lib/telemetry/langfuse", () => ({
   createLangfuseTrace: vi.fn(() =>
