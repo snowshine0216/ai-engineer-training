@@ -33,16 +33,17 @@ test("multi-turn conversation: 3 user turns produce 6 bubbles total", async ({ p
   await page.goto("/");
 
   for (const q of ["What is 2+2?", "What is 5*5?", "What is 10-3?"]) {
-    // Wait for composer to be re-enabled before sending the next turn
-    await expect(page.locator('button[aria-label="Send prompt"]')).toBeEnabled({ timeout: 30000 });
+    // Use the textarea as the readiness signal: it's disabled only when running or no agentId,
+    // whereas the button is also gated on non-empty content (so checking it before fill always fails)
+    await expect(page.locator('textarea#prompt-input')).toBeEnabled({ timeout: 30000 });
     await page.fill("textarea#prompt-input", q);
     await page.click('button[aria-label="Send prompt"]');
-    // Wait for assistant response to start (the answer container becomes visible)
+    // Wait for assistant response to start
     await page.waitForTimeout(500);
   }
 
-  // Wait for the final turn to finish — composer re-enabled is the signal
-  await expect(page.locator('button[aria-label="Send prompt"]')).toBeEnabled({ timeout: 30000 });
+  // Wait for the final turn to finish — textarea re-enabled is the signal
+  await expect(page.locator('textarea#prompt-input')).toBeEnabled({ timeout: 30000 });
 
   // Count user-aligned bubbles: each user message is right-aligned (justifyContent flex-end).
   // Easier proxy: count the prompt strings echoed in the log.
