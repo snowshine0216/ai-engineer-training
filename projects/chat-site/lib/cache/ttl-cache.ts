@@ -3,6 +3,7 @@ export type TtlCache<V> = {
   get: (key: string) => V | undefined;
   set: (key: string, value: V, ttlMs: number) => void;
   delete: (key: string) => void;
+  clear: () => void;
   size: () => number;
 };
 
@@ -29,7 +30,11 @@ export const createTtlCache = <V>(): TtlCache<V> => {
     store.delete(key);
   };
 
+  const clear = (): void => {
+    store.clear();
+  };
+
   const size = (): number => store.size;
 
-  return { get, set, delete: del, size };
+  return { get, set, delete: del, clear, size };
 };

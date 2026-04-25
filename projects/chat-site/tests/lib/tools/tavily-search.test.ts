@@ -1,6 +1,6 @@
 // tests/lib/tools/tavily-search.test.ts
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { _executeForTest, tavilySearch } from "../../../lib/tools/tavily-search";
+import { _executeForTest, _clearCacheForTest, tavilySearch } from "../../../lib/tools/tavily-search";
 
 const ok = (body: unknown) =>
   new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
@@ -21,6 +21,7 @@ describe("tavilySearch", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    _clearCacheForTest();
   });
 
   it("exposes the registry id", () => {
@@ -75,6 +76,12 @@ describe("tavilySearch", () => {
     );
     const out = await _executeForTest({ query: "edgecase empty results" });
     expect(out).toContain("Short answer.");
+  });
+
+  it("returns fallback when both answer and results are absent", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(ok({}));
+    const out = await _executeForTest({ query: "empty payload case" });
+    expect(out).toContain("搜索服务暂时不可用");
   });
 
   it("returns fallback on non-2xx", async () => {

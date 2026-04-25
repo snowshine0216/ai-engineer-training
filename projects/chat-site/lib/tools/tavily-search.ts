@@ -80,12 +80,14 @@ const executeImpl = async ({ query }: { query: string }): Promise<string> => {
 
   const data = (await res.json()) as TavilyResponse;
   const formatted = formatResults(data);
+  if (!formatted) return FALLBACK;   // guard: empty answer + empty results → fallback
   cache.set(key, formatted, TTL_MS);
   logger.info("tavily-search call", { query, cacheHit: false, results: data.results?.length ?? 0 });
   return formatted;
 };
 
 export const _executeForTest = executeImpl;
+export const _clearCacheForTest = (): void => { cache.clear(); };
 
 export const tavilySearch: ToolSpec = {
   id: "tavily-search",

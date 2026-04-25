@@ -64,4 +64,13 @@ describe("createTtlCache", () => {
     a.set("k", "v", 1000);
     expect(b.get("k")).toBeUndefined();
   });
+
+  it("clear empties all entries", () => {
+    const cache = createTtlCache<string>();
+    cache.set("a", "1", 1000);
+    cache.set("b", "2", 1000);
+    cache.clear();
+    expect(cache.size()).toBe(0);
+    expect(cache.get("a")).toBeUndefined();
+  });
 });
