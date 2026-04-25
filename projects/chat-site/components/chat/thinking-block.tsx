@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type Props = {
   thinking: string;
@@ -8,12 +8,11 @@ type Props = {
 };
 
 export function ThinkingBlock({ thinking, isActive, durationMs }: Props) {
-  const [open, setOpen] = useState(true);
+  // null = no user override; boolean = user has explicitly toggled
+  const [override, setOverride] = useState<boolean | null>(null);
 
-  // Auto-collapse the moment the answer starts (durationMs becomes non-null)
-  useEffect(() => {
-    if (durationMs !== null) setOpen(false);
-  }, [durationMs]);
+  // Auto-collapse when durationMs becomes non-null (answer started), unless user overrode
+  const open = override !== null ? override : durationMs === null;
 
   if (thinking.length === 0) return null;
 
@@ -22,7 +21,7 @@ export function ThinkingBlock({ thinking, isActive, durationMs }: Props) {
   return (
     <details
       open={open}
-      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+      onToggle={(e) => setOverride((e.currentTarget as HTMLDetailsElement).open)}
       style={{
         border: "1px solid var(--line)",
         borderRadius: 6,
