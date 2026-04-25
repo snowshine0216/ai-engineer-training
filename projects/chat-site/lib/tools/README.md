@@ -1,7 +1,17 @@
 # Tools
 
-This directory holds a registry scaffold for agent tools. It ships empty — the
-v0.3.0 release is about plumbing, not specific tools.
+The chat-site server registers tools here. Each tool is an SDK-agnostic
+`ToolSpec` that yields a built `@openai/agents` tool via `toSDKTool()`. The
+agent registry references tools by id (`AgentSpec.toolIds`).
+
+## Registered tools
+
+| id | Description |
+|---|---|
+| `amap-weather` | Current weather (and multi-day forecast) for any Chinese city, via AMap. Cached 10 min per `(adcode, mode)`. Requires `AMAP_API_KEY`. |
+| `tavily-search` | Web search with synthesized answer. Cached 30 min per normalized query. Requires `TAVILY_API_KEY`. |
+
+Both tools are wired into the `general` agent (`lib/agents/general.ts`).
 
 ## Adding a tool
 
@@ -33,7 +43,6 @@ v0.3.0 release is about plumbing, not specific tools.
 
 3. Reference it from an agent spec by id:
    ```ts
-   // lib/agents/my-agent.ts
    export const myAgent: AgentSpec = {
      id: "my-agent",
      /* … */,

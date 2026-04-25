@@ -1,5 +1,12 @@
 # TODOs
 
+## Shipped in 0.4.0
+- [x] `amap-weather` tool with 10-min TTL cache and 10 s timeout
+- [x] `tavily-search` tool with 30-min TTL cache (normalized query key) and 15 s timeout
+- [x] `lib/cache/ttl-cache.ts` — generic in-memory TTL cache factory
+- [x] `scripts/build-city-index.mjs` — xlsx → json city/adcode index
+- [x] `general` agent registers both tools; prompt gates tool-calling to clear intent
+
 ## Shipped in 0.3.0
 - [x] Pluggable agent/prompt/tools registries (general + qa-coach agents)
 - [x] Multi-turn conversation history with full message-array API
@@ -30,3 +37,4 @@
 - [ ] **Budget is per-worker on Vercel** — multiple warm instances multiply the effective budget. Consider a shared store (KV, Redis) for true rate limiting.
 - [ ] **Retry button ignores Retry-After header** — client should delay the retry by the server-specified seconds.
 - [ ] **Multi-agent handoffs** — server-side agent routing, multi-conversation sidebar, history compaction, in-browser log viewer remain deferred.
+- [ ] **Tool caches are per-process** — Vercel cold starts and multiple warm instances each carry their own cache. Acceptable for single-instance demos; consider Vercel KV / Redis for production.

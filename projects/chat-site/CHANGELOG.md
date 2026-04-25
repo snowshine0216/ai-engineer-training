@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] — 2026-04-25
+
+### Features
+- `amap-weather` tool: current conditions or multi-day forecast for any Chinese city via AMap. 10-minute per-process TTL cache, 10 s timeout, graceful Chinese fallback message on error.
+- `tavily-search` tool: web search with synthesized answer via Tavily REST API. 30-minute per-process TTL cache (normalized query key), 15 s timeout, graceful fallback.
+- `general` agent now registers both tools; system prompt instructs the model to call them only on clear intent (weather / current information) and skip them on greetings and trainable knowledge.
+- New `lib/cache/ttl-cache.ts` — tiny generic TTL cache factory (no shared globals).
+- New `scripts/build-city-index.mjs` — builds `lib/tools/amap-cities.json` from `data/AMap_adcode_citycode.xlsx` (run via `pnpm build-cities`).
+- New required env vars: `AMAP_API_KEY`, `TAVILY_API_KEY`. Validated by `parseServerEnv` at startup.
+
+### Tests
+- ~25 new unit tests across `ttl-cache`, `city-lookup`, `amap-weather`, `tavily-search`, registry, and env.
+- All upstream calls fully mocked via `vi.spyOn(global, "fetch")` — no network in the test suite.
+
+### Notes
+- Caches are per-Node-process. A Vercel cold start or restart resets them. Multi-instance deployments do not share cache. Acceptable for the homework / single-instance demo; swap in `lru-cache` or KV if memory or hit ratio becomes a concern.
+- Tool `execute()` never throws to the SDK — every failure path returns a user-friendly Chinese string. The model relays the message to the user.
+
 ## [0.3.0] — 2026-04-25
 
 ### Features
