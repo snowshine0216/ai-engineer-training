@@ -178,4 +178,50 @@ describe("runDemo — classifyError branches", () => {
     expect(emittedEvents.map((e) => e.kind)).toEqual(["accepted"]);
     expect(vi.mocked(mockRun)).not.toHaveBeenCalled();
   });
+
+  it("classifies status=401 as auth_error with a meaningful message", async () => {
+    const err = Object.assign(new Error("401 Incorrect API key provided"), { status: 401 });
+    vi.mocked(mockRun).mockRejectedValue(err);
+
+    await runDemo({ prompt: "hi", model: "m", demoMode: false, emit });
+
+    const kinds = emittedEvents.map((e) => e.kind);
+    expect(kinds).toEqual(["accepted", "failed"]);
+    const failedEvent = emittedEvents[1] as Extract<StreamEvent, { kind: "failed" }>;
+    expect(failedEvent.message).toBe("API authentication failed. Check your API key.");
+    expect(failedEvent.retryable).toBe(false);
+  });
+
+  it("classifies status=403 as auth_error", async () => {
+    const err = Object.assign(new Error("403 Forbidden"), { status: 403 });
+    vi.mocked(mockRun).mockRejectedValue(err);
+
+    await runDemo({ prompt: "hi", model: "m", demoMode: false, emit });
+
+    const failedEvent = emittedEvents[1] as Extract<StreamEvent, { kind: "failed" }>;
+    expect(failedEvent.message).toBe("API authentication failed. Check your API key.");
+  });
+
+  it("classifies status=404 as not_found with a meaningful message", async () => {
+    const err = Object.assign(new Error("404 The model does not exist"), { status: 404 });
+    vi.mocked(mockRun).mockRejectedValue(err);
+
+    await runDemo({ prompt: "hi", model: "m", demoMode: false, emit });
+
+    const kinds = emittedEvents.map((e) => e.kind);
+    expect(kinds).toEqual(["accepted", "failed"]);
+    const failedEvent = emittedEvents[1] as Extract<StreamEvent, { kind: "failed" }>;
+    expect(failedEvent.message).toBe("Model or API endpoint not found.");
+    expect(failedEvent.retryable).toBe(false);
+  });
+
+  it("fallback uses err.message for unclassified errors", async () => {
+    vi.mocked(mockRun).mockRejectedValue(new Error("Something completely unexpected happened"));
+
+    await runDemo({ prompt: "hi", model: "m", demoMode: false, emit });
+
+    const failedEvent = emittedEvents[1] as Extract<StreamEvent, { kind: "failed" }>;
+    expect(failedEvent.message).toBe("Something completely unexpected happened");
+    expect(failedEvent.retryable).toBe(false);
+  });
 });
