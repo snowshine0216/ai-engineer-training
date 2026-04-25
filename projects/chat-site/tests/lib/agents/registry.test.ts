@@ -34,7 +34,7 @@ describe("agents registry", () => {
   it("buildAgent constructs an Agent from prompt + model + tools", async () => {
     const { Agent } = await import("@openai/agents");
     const env = { DEFAULT_MODEL: "gpt-4o-mini" } as { DEFAULT_MODEL: string };
-    const agent = buildAgent(getAgent("general")!, env) as { __agent: { name: string; instructions: string; model: string; tools: unknown[] } };
+    const agent = buildAgent(getAgent("general")!, env) as unknown as { __agent: { name: string; instructions: string; model: string; tools: unknown[] } };
     expect(Agent).toHaveBeenCalledTimes(1);
     expect(agent.__agent.name).toBe("General");
     expect(agent.__agent.instructions).toContain("helpful assistant");

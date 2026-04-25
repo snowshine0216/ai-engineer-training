@@ -41,7 +41,7 @@ describe("toAgentInput", () => {
       { role: "assistant", content: "a2" },
     ];
     const out = toAgentInput(msgs);
-    expect(out.map((m) => m.role)).toEqual(["user", "assistant", "user", "assistant"]);
+    expect(out.map((m) => (m as { role: string }).role)).toEqual(["user", "assistant", "user", "assistant"]);
   });
 
   it("skips assistant messages with empty content (e.g. mid-stream placeholder)", () => {

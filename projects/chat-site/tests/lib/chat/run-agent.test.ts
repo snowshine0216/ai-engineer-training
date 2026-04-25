@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { StreamEvent } from "../../../lib/chat/stream-event";
 
 const mockRunnerRun = vi.fn();
-const mockBuildAgent = vi.fn(() => ({}));
+const mockBuildAgent = vi.fn((..._args: unknown[]) => ({}));
 
 vi.mock("@openai/agents", () => ({
   Agent: vi.fn().mockImplementation(() => ({})),
@@ -17,7 +17,7 @@ vi.mock("../../../lib/agents", async () => {
   const actual = await vi.importActual<typeof import("../../../lib/agents")>("../../../lib/agents");
   return {
     ...actual,
-    buildAgent: (...args: unknown[]) => mockBuildAgent(...args),
+    buildAgent: (a: unknown, b: unknown) => mockBuildAgent(a, b),
   };
 });
 
