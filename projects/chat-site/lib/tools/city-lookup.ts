@@ -19,7 +19,11 @@ export type CityRow = { name: string; adcode: string };
 export type CityMatch = { adcode: string; matched: string };
 
 const DATA: ReadonlyArray<CityRow> = cities as CityRow[];
-const DATA_MAP = new Map<string, CityRow>(DATA.map((r) => [r.name, r]));
+// Keep first occurrence for duplicate names (e.g. 朝阳区 exists in Beijing and Changchun).
+const DATA_MAP = DATA.reduce(
+  (m, r) => (m.has(r.name) ? m : m.set(r.name, r)),
+  new Map<string, CityRow>()
+);
 const SUFFIXES = ["市", "县", "区"];
 
 const stripSuffix = (s: string): string => {

@@ -88,11 +88,13 @@ const executeImpl = async ({ city, forecast = false }: ExecuteArgs): Promise<str
     return FALLBACK;
   }
 
-  const data = (await res.json()) as {
-    status?: string; info?: string;
-    lives?: Lives[];
-    forecasts?: Array<{ city: string; casts: Cast[] }>;
-  };
+  let data: { status?: string; info?: string; lives?: Lives[]; forecasts?: Array<{ city: string; casts: Cast[] }> };
+  try {
+    data = (await res.json()) as typeof data;
+  } catch {
+    logger.warn("amap-weather failed", { city, adcode: match.adcode, forecast, reason: "invalid JSON" });
+    return FALLBACK;
+  }
 
   if (data.status !== "1") {
     logger.warn("amap-weather failed", { city, adcode: match.adcode, forecast, info: data.info });

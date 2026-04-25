@@ -79,7 +79,13 @@ const executeImpl = async ({ query }: { query: string }): Promise<string> => {
     return FALLBACK;
   }
 
-  const data = (await res.json()) as TavilyResponse;
+  let data: TavilyResponse;
+  try {
+    data = (await res.json()) as TavilyResponse;
+  } catch {
+    logger.warn("tavily-search failed", { query, reason: "invalid JSON" });
+    return FALLBACK;
+  }
   const formatted = formatResults(data);
   if (!formatted) return FALLBACK;   // guard: empty answer + empty results → fallback
   cache.set(key, formatted, TTL_MS);
