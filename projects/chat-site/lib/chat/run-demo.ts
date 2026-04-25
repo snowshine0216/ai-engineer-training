@@ -46,7 +46,13 @@ const classifyError = (
   if (msg.includes("connection") || msg.includes("network")) {
     return { retryable: true, reason: "Connection error. Retrying.", code: "connection_error" };
   }
-  return { retryable: false, reason: "An unexpected error occurred." };
+  if (status === 401 || status === 403) {
+    return { retryable: false, reason: "API authentication failed. Check your API key.", code: "auth_error" };
+  }
+  if (status === 404) {
+    return { retryable: false, reason: "Model or API endpoint not found.", code: "not_found" };
+  }
+  return { retryable: false, reason: err.message || "An unexpected error occurred." };
 };
 
 class DemoInjectedFailure extends Error {
