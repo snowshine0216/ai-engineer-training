@@ -72,11 +72,14 @@ const executeImpl = async ({ city, forecast = false }: ExecuteArgs): Promise<str
 
   const apiKey = process.env.AMAP_API_KEY ?? "";
   const ext = forecast ? "all" : "base";
-  const url = `${ENDPOINT}?key=${encodeURIComponent(apiKey)}&city=${match.adcode}&extensions=${ext}`;
+  const url = new URL(ENDPOINT);
+  url.searchParams.set("key", apiKey);
+  url.searchParams.set("city", match.adcode);
+  url.searchParams.set("extensions", ext);
 
   let res: Response;
   try {
-    res = await fetchWithTimeout(url);
+    res = await fetchWithTimeout(url.toString());
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     logger.warn("amap-weather failed", { city, adcode: match.adcode, forecast, reason });
