@@ -2,12 +2,17 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { StreamEvent } from "../../../lib/chat/stream-event";
 
+const mockRunnerRun = vi.fn();
+
 vi.mock("@openai/agents", () => ({
   Agent: vi.fn().mockImplementation(() => ({})),
   run: vi.fn(),
 }));
 
-import { run as mockRun } from "@openai/agents";
+vi.mock("../../../lib/ai/openai-provider", () => ({
+  getRunner: () => ({ run: mockRunnerRun }),
+}));
+
 import { runDemo } from "../../../lib/chat/run-demo";
 
 // Returns a fake StreamedRunResult with the given text chunks
@@ -38,7 +43,7 @@ describe("runDemo", () => {
   });
 
   it("emits accepted, answer_delta chunks, and done on first-attempt success", async () => {
-    vi.mocked(mockRun).mockResolvedValue(makeStreamedResult(["Hello", " world"]) as any);
+    mockRunnerRun.mockResolvedValue(makeStreamedResult(["Hello", " world"]) as any);
 
     await runDemo({ prompt: "hi", model: "test-model", demoMode: false, emit });
 
@@ -52,7 +57,7 @@ describe("runDemo", () => {
   });
 
   it("decodes Buffer chunks from the node-compatible text stream before emitting deltas", async () => {
-    vi.mocked(mockRun).mockResolvedValue(
+    mockRunnerRun.mockResolvedValue(
       makeStreamedResult([Buffer.from("Hello"), Buffer.from(" world")]) as any,
     );
 
@@ -71,7 +76,7 @@ describe("runDemo", () => {
   });
 
   it("emits retrying then recovered when attempt 1 fails with a retryable error", async () => {
-    vi.mocked(mockRun)
+    mockRunnerRun
       .mockRejectedValueOnce(new Error("rate limit exceeded (429)"))
       .mockResolvedValue(makeStreamedResult(["Recovered answer"]) as any);
 
@@ -95,7 +100,7 @@ describe("runDemo", () => {
   });
 
   it("emits failed without retrying when the error is not retryable", async () => {
-    vi.mocked(mockRun).mockRejectedValue(new Error("Invalid API key"));
+    mockRunnerRun.mockRejectedValue(new Error("Invalid API key"));
 
     await runDemo({ prompt: "hi", model: "test-model", demoMode: false, emit });
 
@@ -105,7 +110,7 @@ describe("runDemo", () => {
   });
 
   it("emits failed when all attempts exhaust retryable errors", async () => {
-    vi.mocked(mockRun).mockRejectedValue(new Error("rate limit exceeded (429)"));
+    mockRunnerRun.mockRejectedValue(new Error("rate limit exceeded (429)"));
 
     await runDemo({ prompt: "hi", model: "test-model", demoMode: false, emit });
 
@@ -115,7 +120,7 @@ describe("runDemo", () => {
   });
 
   it("in demo mode, injects a failure on attempt 1 then recovers on attempt 2", async () => {
-    vi.mocked(mockRun).mockResolvedValue(makeStreamedResult(["Demo answer"]) as any);
+    mockRunnerRun.mockResolvedValue(makeStreamedResult(["Demo answer"]) as any);
 
     await runDemo({ prompt: "hi", model: "test-model", demoMode: true, emit });
 
@@ -128,11 +133,11 @@ describe("runDemo", () => {
       nextAttemptId: 2,
       code: "rate_limit_exceeded",
     });
-    expect(vi.mocked(mockRun)).toHaveBeenCalledTimes(1);
+    expect(mockRunnerRun).toHaveBeenCalledTimes(1);
   });
 
   it("each event has an eventId and ts", async () => {
-    vi.mocked(mockRun).mockResolvedValue(makeStreamedResult(["hi"]) as any);
+    mockRunnerRun.mockResolvedValue(makeStreamedResult(["hi"]) as any);
 
     await runDemo({ prompt: "hi", model: "test-model", demoMode: false, emit });
 

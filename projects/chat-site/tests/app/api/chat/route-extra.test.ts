@@ -1,6 +1,7 @@
 // tests/app/api/chat/route-extra.test.ts
 // Covers gaps: invalid JSON body, rate-limit budget, runDemo throw safety net,
-// DEMO_MODE=true forwarded, trace always last, body parsing error path.
+// DEMO_MODE=true forwarded, trace always last, body parsing error path,
+// pre-flight auth/not-found errors.
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { StreamEvent } from "../../../../lib/chat/stream-event";
 
@@ -20,11 +21,16 @@ vi.mock("../../../../lib/config/env", () => ({
 
 vi.mock("../../../../lib/ai/openai-provider", () => ({
   initializeOpenAIProvider: vi.fn(),
+  validateProviderAuth: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../../../../lib/chat/run-demo", () => ({
-  runDemo: vi.fn(),
-}));
+vi.mock("../../../../lib/chat/run-demo", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../../lib/chat/run-demo")>();
+  return {
+    runDemo: vi.fn(),
+    classifyError: actual.classifyError,
+  };
+});
 
 vi.mock("../../../../lib/telemetry/langfuse", () => ({
   createLangfuseTrace: vi.fn(() =>
@@ -36,6 +42,7 @@ import { POST } from "../../../../app/api/chat/route";
 import { resetBudget } from "../../../../lib/chat/budget";
 import { runDemo as mockRunDemo } from "../../../../lib/chat/run-demo";
 import { getServerEnv as mockGetServerEnv } from "../../../../lib/config/env";
+import { validateProviderAuth as mockValidateProviderAuth } from "../../../../lib/ai/openai-provider";
 
 const readStream = async (response: Response): Promise<StreamEvent[]> => {
   const text = await response.text();
@@ -201,8 +208,86 @@ describe("POST /api/chat — additional coverage", () => {
     const resp = await POST(makeRequest({ prompt: 123 }));
     expect(resp.status).toBe(400);
     const body = await resp.json();
-    // Should include field path in the message
     expect(body.error).toBeDefined();
     expect(typeof body.error).toBe("string");
+  });
+
+  it("returns 401 when validateProviderAuth throws a 401 auth error", async () => {
+    vi.mocked(mockGetServerEnv).mockReturnValue({
+      OPENAI_BASE_URL: "https://api.example.com/v1",
+      OPENAI_API_KEY: "sk-bad",
+      DEFAULT_MODEL: "gpt-4o-mini",
+      DEMO_MODE: false,
+      DEMO_REQUEST_BUDGET: 50,
+      LANGFUSE_PUBLIC_KEY: undefined,
+      LANGFUSE_SECRET_KEY: undefined,
+      LANGFUSE_HOST: undefined,
+    });
+    const authErr = Object.assign(new Error("Unauthorized"), { status: 401 });
+    vi.mocked(mockValidateProviderAuth).mockRejectedValue(authErr);
+
+    const resp = await POST(makeRequest({ prompt: "hello" }));
+    expect(resp.status).toBe(401);
+    const body = await resp.json();
+    expect(body.error).toMatch(/authentication/i);
+    expect(body.code).toBe("auth_error");
+  });
+
+  it("returns 404 when validateProviderAuth throws a 404 not-found error", async () => {
+    vi.mocked(mockGetServerEnv).mockReturnValue({
+      OPENAI_BASE_URL: "https://api.example.com/v1",
+      OPENAI_API_KEY: "sk-test",
+      DEFAULT_MODEL: "unknown-model",
+      DEMO_MODE: false,
+      DEMO_REQUEST_BUDGET: 50,
+      LANGFUSE_PUBLIC_KEY: undefined,
+      LANGFUSE_SECRET_KEY: undefined,
+      LANGFUSE_HOST: undefined,
+    });
+    const notFoundErr = Object.assign(new Error("Not found"), { status: 404 });
+    vi.mocked(mockValidateProviderAuth).mockRejectedValue(notFoundErr);
+
+    const resp = await POST(makeRequest({ prompt: "hello" }));
+    expect(resp.status).toBe(404);
+    const body = await resp.json();
+    expect(body.code).toBe("not_found");
+  });
+
+  it("returns 200 and falls through to the stream when validateProviderAuth throws a retryable error", async () => {
+    vi.mocked(mockGetServerEnv).mockReturnValue({
+      OPENAI_BASE_URL: "https://api.example.com/v1",
+      OPENAI_API_KEY: "sk-test",
+      DEFAULT_MODEL: "gpt-4o-mini",
+      DEMO_MODE: false,
+      DEMO_REQUEST_BUDGET: 50,
+      LANGFUSE_PUBLIC_KEY: undefined,
+      LANGFUSE_SECRET_KEY: undefined,
+      LANGFUSE_HOST: undefined,
+    });
+    const rateLimitErr = Object.assign(new Error("rate limit exceeded"), { status: 429 });
+    vi.mocked(mockValidateProviderAuth).mockRejectedValue(rateLimitErr);
+    vi.mocked(mockRunDemo).mockImplementation(async () => {});
+
+    const resp = await POST(makeRequest({ prompt: "hello" }));
+    // Retryable pre-flight errors fall through to the stream — runDemo handles the retry
+    expect(resp.status).toBe(200);
+  });
+
+  it("skips validateProviderAuth and returns 200 when DEMO_MODE is true", async () => {
+    vi.mocked(mockGetServerEnv).mockReturnValue({
+      OPENAI_BASE_URL: "https://api.example.com/v1",
+      OPENAI_API_KEY: "sk-test",
+      DEFAULT_MODEL: "gpt-4o-mini",
+      DEMO_MODE: true,
+      DEMO_REQUEST_BUDGET: 50,
+      LANGFUSE_PUBLIC_KEY: undefined,
+      LANGFUSE_SECRET_KEY: undefined,
+      LANGFUSE_HOST: undefined,
+    });
+    vi.mocked(mockRunDemo).mockImplementation(async () => {});
+
+    const resp = await POST(makeRequest({ prompt: "demo" }));
+    expect(resp.status).toBe(200);
+    expect(vi.mocked(mockValidateProviderAuth)).not.toHaveBeenCalled();
   });
 });
