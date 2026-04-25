@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] — 2026-04-25
+
+### Features
+- Pluggable sub-modules: `lib/agents/`, `lib/prompts/`, `lib/tools/` registries (general + qa-coach agents shipped; tools registry is an empty scaffold)
+- Multi-turn conversation history — single in-memory thread, reload resets
+- Header agent picker with "+ New chat" reset button; picker locks after the first message
+- Server-side `<think>...</think>` tag parser splits reasoning content from the answer; UI auto-collapses thinking section on first answer delta with "Show thinking (Xs)" toggle
+- Server-side JSON-line logger (`lib/logging`) — console + `logs/app.log`, level-filtered, fail-once-and-disable on file errors
+- New `GET /api/agents` route returns the public agent list
+- `POST /api/chat` accepts `{ messages, agentId }` with full message-array validation; returns 404 on unknown `agentId`
+- Stream protocol: `accepted` carries `agentId`, new `thinking_delta` event, `done` may carry `usage`
+
+### Removed
+- `DEMO_MODE` env var, demo-mode failure injection, interruption banner
+- Two-pane right rail (timeline + trace card + status chip)
+- `lib/chat/run-demo.ts` (renamed and rewritten as `run-agent.ts`)
+- `TraceEvent`, `InterruptedEvent`, `AttemptText`, `Status` types from the stream-event union
+
+### Tests
+- New: think-parser exhaustive tests (cross-chunk byte slicing, malformed tags, multiple blocks, unicode)
+- New: agents/prompts/tools registry tests; logger file/console tests; agents API GET test; multi-turn E2E spec
+- Removed: run-demo tests, route demo-mode tests, interview happy-path / forced-retry-recovery E2E specs
+
+### Notes
+- Vercel filesystem is read-only outside `/tmp`. The logger defaults to console-only when `process.env.VERCEL=1`. Set `LOG_FILE_ENABLED=true` and `LOG_DIR=/tmp/logs` to opt in (logs are ephemeral per cold-start).
+- Multi-agent handoffs, server-side persistence, multi-conversation sidebar, in-browser log viewer, and history compaction remain deferred.
+
 ## [0.2.0] — 2026-04-24
 
 ### Features
