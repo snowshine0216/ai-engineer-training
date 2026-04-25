@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 
 vi.mock("@openai/agents", () => ({
   Agent: vi.fn().mockImplementation((opts: unknown) => ({ __agent: opts })),
+  tool: vi.fn().mockImplementation((opts: unknown) => ({ __sdkTool: opts })),
 }));
 
 import { AGENT_REGISTRY, getAgent, listAgents, buildAgent } from "../../../lib/agents";
@@ -39,7 +40,7 @@ describe("agents registry", () => {
     expect(agent.__agent.name).toBe("General");
     expect(agent.__agent.instructions).toContain("helpful assistant");
     expect(agent.__agent.model).toBe("gpt-4o-mini");
-    expect(agent.__agent.tools).toEqual([]);
+    expect(agent.__agent.tools).toHaveLength(2);
   });
 
   it("buildAgent honors spec.model when present, overriding env DEFAULT_MODEL", async () => {

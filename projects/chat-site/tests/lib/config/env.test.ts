@@ -6,6 +6,8 @@ const BASE_ENV = {
   OPENAI_BASE_URL: "https://api.example.com/v1",
   OPENAI_API_KEY: "sk-test",
   DEFAULT_MODEL: "gpt-4o-mini",
+  AMAP_API_KEY: "amap-test",
+  TAVILY_API_KEY: "tavily-test",
 };
 
 describe("parseServerEnv", () => {
@@ -68,5 +70,12 @@ describe("parseServerEnv", () => {
     const env = parseServerEnv({ ...BASE_ENV, LANGFUSE_PUBLIC_KEY: "  ", LANGFUSE_HOST: "" });
     expect(env.LANGFUSE_PUBLIC_KEY).toBeUndefined();
     expect(env.LANGFUSE_HOST).toBeUndefined();
+  });
+
+  it("rejects missing AMAP_API_KEY or TAVILY_API_KEY", () => {
+    const { AMAP_API_KEY: _a, ...withoutAmap } = BASE_ENV;
+    const { TAVILY_API_KEY: _t, ...withoutTavily } = BASE_ENV;
+    expect(() => parseServerEnv(withoutAmap)).toThrow(/AMAP_API_KEY/);
+    expect(() => parseServerEnv(withoutTavily)).toThrow(/TAVILY_API_KEY/);
   });
 });

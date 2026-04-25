@@ -12,6 +12,8 @@ describe("parseServerEnv (boolean coercion edges)", () => {
       OPENAI_BASE_URL: "https://api.example.com/v1",
       OPENAI_API_KEY: "sk-test",
       DEFAULT_MODEL: "gpt-4o-mini",
+      AMAP_API_KEY: "amap-test",
+      TAVILY_API_KEY: "tavily-test",
       LOG_FILE_ENABLED: raw,
     });
     expect(env.LOG_FILE_ENABLED).toBe(parsed);
