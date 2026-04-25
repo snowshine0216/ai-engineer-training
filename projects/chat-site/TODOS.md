@@ -1,5 +1,16 @@
 # TODOs
 
+## Shipped in 0.3.0
+- [x] Pluggable agent/prompt/tools registries (general + qa-coach agents)
+- [x] Multi-turn conversation history with full message-array API
+- [x] Header agent picker with per-session lock and "+ New chat" reset
+- [x] `<think>` tag parser — splits reasoning from answer, auto-collapses in UI
+- [x] Server-side JSON-line logger (console + file, fail-once-and-disable)
+- [x] `GET /api/agents` route; `POST /api/chat` accepts `agentId`
+- [x] 144 unit tests; multi-turn Playwright E2E spec
+- [x] Client disconnect cancels upstream model run via `AbortSignal` through `ReadableStream.cancel()`
+- [x] Client-side 65 s timeout guard prevents hung TCP from freezing UI permanently
+
 ## Shipped in 0.2.0
 - [x] Split-screen streaming chat UI
 - [x] NDJSON streaming route with budget guard
@@ -15,8 +26,7 @@
 
 ## Known limitations (investigate before production)
 
-- [ ] **Client disconnect doesn't cancel upstream model run** — if the user navigates away, `runDemo` keeps running and consuming tokens. Fix: pass `AbortSignal` through to `@openai/agents` `run()` via `ReadableStream`'s `cancel()` callback.
-- [ ] **Broken stream leaves UI in `running` forever** — no guaranteed terminal event verification on the client. Consider a keepalive/heartbeat or a client-side timeout.
-- [ ] **`initializeOpenAIProvider()` mutates global SDK singleton per request** — concurrent warm-instance requests could race on the shared SDK config. Fix: create a per-request provider instance.
+- [ ] **`initializeOpenAIProvider()` mutates global SDK singleton** — concurrent warm-instance requests could race on the shared SDK config. Fix: create a per-request provider instance.
 - [ ] **Budget is per-worker on Vercel** — multiple warm instances multiply the effective budget. Consider a shared store (KV, Redis) for true rate limiting.
 - [ ] **Retry button ignores Retry-After header** — client should delay the retry by the server-specified seconds.
+- [ ] **Multi-agent handoffs** — server-side agent routing, multi-conversation sidebar, history compaction, in-browser log viewer remain deferred.

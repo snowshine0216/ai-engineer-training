@@ -23,7 +23,7 @@ const messageSchema = z.object({
 });
 
 const requestSchema = z.object({
-  agentId: z.string().min(1),
+  agentId: z.string().min(1).max(64),
   messages: z.array(messageSchema).min(1, "messages must contain at least one entry").max(200, "messages too long"),
 });
 
@@ -59,7 +59,7 @@ export async function POST(req: Request): Promise<Response> {
   const { agentId, messages } = parsed.data;
 
   const spec = getAgent(agentId);
-  if (!spec) return errorResponse(`Unknown agent: ${agentId}`, 404, "unknown_agent");
+  if (!spec) return errorResponse("Unknown agent", 404, "unknown_agent");
 
   // Last message must be from the user — server is stateless, the user always
   // initiates the next turn.
@@ -89,7 +89,7 @@ export async function POST(req: Request): Promise<Response> {
   logger.info("chat request accepted", { agentId, messageCount: messages.length, traceId: trace.traceId });
 
   const abortController = new AbortController();
-  req.signal.addEventListener("abort", () => abortController.abort());
+  req.signal.addEventListener("abort", () => abortController.abort(), { once: true });
 
   const stream = new ReadableStream({
     async start(controller) {

@@ -66,6 +66,7 @@ export default function Page() {
       if (!state.agentId) return;
       abortRef.current?.abort();
       const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 65_000);
       abortRef.current = controller;
 
       // Build the next messages array including the new user turn so the request reflects it.
@@ -83,7 +84,9 @@ export default function Page() {
           body: JSON.stringify({
             agentId: state.agentId,
             messages: nextMessages.map((m) =>
-              m.role === "assistant" ? { role: "assistant", content: m.content } : { role: "user", content: m.content },
+              m.role === "assistant"
+                ? { role: "assistant", content: m.content, ...(m.thinking ? { thinking: m.thinking } : {}) }
+                : { role: "user", content: m.content },
             ),
           }),
           signal: controller.signal,
@@ -131,6 +134,8 @@ export default function Page() {
             },
           });
         }
+      } finally {
+        clearTimeout(timeoutId);
       }
     },
     [state.agentId, state.messages],

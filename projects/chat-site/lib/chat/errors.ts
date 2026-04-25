@@ -6,6 +6,9 @@ export type ErrorClassification = {
 };
 
 export const classifyError = (err: unknown): ErrorClassification => {
+  if (err instanceof Error && err.name === "AbortError") {
+    return { retryable: false, reason: "Request aborted.", code: "aborted" };
+  }
   if (!(err instanceof Error)) return { retryable: false, reason: "Unknown error" };
 
   const msg = err.message.toLowerCase();
