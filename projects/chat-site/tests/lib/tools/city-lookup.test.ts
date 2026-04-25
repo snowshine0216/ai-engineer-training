@@ -44,9 +44,10 @@ describe("lookupAdcode", () => {
   });
 
   it("falls back to substring match when no exact/suffix match", () => {
-    // "北京海淀区" is not in dataset; substring search finds "海淀区" (110108)
-    const m = lookupAdcode("北京海淀区");
+    // "梅里斯达斡尔族区测试" is not in dataset; substring search finds "梅里斯达斡尔族区"
+    const m = lookupAdcode("梅里斯达斡尔族区测试");
     expect(m).toBeDefined();
+    expect(m?.matched).toBe("梅里斯达斡尔族区");
   });
 
   it("returns undefined for nonsense input", () => {

@@ -48,11 +48,11 @@ const findExactWithSuffix = (q: string): CityRow | undefined => {
 /** Match when a dataset name is fully contained in q (longer input), or q in name.
  *  The reverse direction (q.includes(row.name)) is guarded to row.name.length >= 3
  *  to avoid false positives from 2-char dataset entries like "城区" or "中国".
- *  Limit to first 50 entries to prevent O(n) performance issues. */
+ *  Limit to first 200 entries to prevent O(n) performance issues. */
 const findSubstring = (q: string): CityRow | undefined => {
   let count = 0;
   for (const row of DATA) {
-    if (count++ > 50) break; // Performance limit
+    if (count++ > 200) break; // Performance limit
     if (row.name.includes(q) || (row.name.length >= 3 && q.includes(row.name))) {
       return row;
     }
