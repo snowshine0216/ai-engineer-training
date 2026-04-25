@@ -14,6 +14,15 @@ vi.mock("@openai/agents", () => ({
   setTracingDisabled: vi.fn(),
 }));
 
+vi.mock("../../../lib/logging", () => ({
+  getLogger: vi.fn().mockReturnValue({
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  }),
+}));
+
 import OpenAI from "openai";
 import {
   OpenAIProvider,
@@ -30,8 +39,10 @@ const makeEnv = (overrides: Partial<ServerEnv> = {}): ServerEnv => ({
   OPENAI_BASE_URL: "https://api.example.com/v1",
   OPENAI_API_KEY: "sk-test",
   DEFAULT_MODEL: "gpt-4o-mini",
-  DEMO_MODE: false,
   DEMO_REQUEST_BUDGET: 50,
+  LOG_LEVEL: "info",
+  LOG_DIR: "logs",
+  LOG_FILE_ENABLED: false,
   LANGFUSE_PUBLIC_KEY: undefined,
   LANGFUSE_SECRET_KEY: undefined,
   LANGFUSE_HOST: undefined,
@@ -100,12 +111,6 @@ describe("initializeOpenAIProvider", () => {
   });
 
   it("getRunner() throws before initializeOpenAIProvider is called", async () => {
-    // getRunner relies on module-level state set by initializeOpenAIProvider.
-    // Since beforeEach clears mocks but doesn't reset module state, we test
-    // the error path via a fresh dynamic import.
-    // This is a structural assertion — the real throw is tested implicitly
-    // because the mock Runner returns {} which is truthy, so getRunner() succeeds
-    // after init.
     initializeOpenAIProvider(makeEnv());
     expect(() => getRunner()).not.toThrow();
   });

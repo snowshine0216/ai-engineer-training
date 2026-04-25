@@ -8,6 +8,7 @@
   --muted: #667085;
   --line: #d0d5dd;
   --accent: #0f62fe;
+  --on-accent: #fff;
   --success: #117a65;
   --warning: #b45309;
   --warning-bg: #fffbf0;
@@ -51,7 +52,7 @@ a:visited {
 .skip-link {
   position: absolute;
   left: -9999px;
-  font-size: 14px;
+  font-size: 16px;
   background: var(--panel);
   padding: 6px 12px;
   border-radius: 4px;
@@ -63,28 +64,11 @@ a:visited {
   top: 8px;
 }
 
-.chat-main {
-  display: grid;
-  grid-template-columns: 62fr 38fr;
-  gap: 0;
-  height: calc(100vh - 65px);
-  overflow: hidden;
-}
-
-@media (max-width: 767px) {
-  .chat-main {
-    grid-template-columns: 1fr;
-    height: auto;
-  }
-  .chat-main aside {
-    border-top: 1px solid var(--line);
-  }
-}
-
-@media (min-width: 768px) and (max-width: 1199px) {
-  .chat-main {
-    grid-template-columns: 58fr 42fr;
-  }
+.chat-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 100vh;
 }
 
 @media (prefers-color-scheme: dark) {

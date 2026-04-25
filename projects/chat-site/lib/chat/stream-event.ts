@@ -1,8 +1,19 @@
+// lib/chat/stream-event.ts
+
 export type AcceptedEvent = {
   eventId: string;
   kind: "accepted";
   attemptId: 1;
+  agentId: string;
   ts: number;
+};
+
+export type ThinkingDeltaEvent = {
+  eventId: string;
+  kind: "thinking_delta";
+  attemptId: number;
+  ts: number;
+  delta: string;
 };
 
 export type AnswerDeltaEvent = {
@@ -29,14 +40,6 @@ export type RecoveredEvent = {
   attemptId: number;
   fromAttemptId: number;
   ts: number;
-  message: string;
-};
-
-export type TraceEvent = {
-  eventId: string;
-  kind: "trace";
-  ts: number;
-  traceUrl: string | null;
 };
 
 export type DoneEvent = {
@@ -44,9 +47,9 @@ export type DoneEvent = {
   kind: "done";
   attemptId: number;
   ts: number;
+  usage?: { input_tokens?: number; output_tokens?: number };
 };
 
-// "failed" is emitted by the server when all retry attempts are exhausted.
 export type FailedEvent = {
   eventId: string;
   kind: "failed";
@@ -56,28 +59,11 @@ export type FailedEvent = {
   retryable: boolean;
 };
 
-// "interrupted" is client-only — synthesized in page.tsx, never sent by the server.
-export type InterruptedEvent = {
-  eventId: string;
-  kind: "interrupted";
-  attemptId: number;
-  ts: number;
-  message: string;
-  retryable: boolean;
-};
-
 export type StreamEvent =
   | AcceptedEvent
+  | ThinkingDeltaEvent
   | AnswerDeltaEvent
   | RetryingEvent
   | RecoveredEvent
-  | TraceEvent
   | DoneEvent
-  | FailedEvent
-  | InterruptedEvent;
-
-// Shared shape for accumulated text per attempt — used by page.tsx and AnswerPane
-export type AttemptText = { text: string; isDone: boolean };
-
-// Canonical UI status type — mirrors the terminal states produced by stream events.
-export type Status = "idle" | "running" | "done" | "failed" | "interrupted";
+  | FailedEvent;
