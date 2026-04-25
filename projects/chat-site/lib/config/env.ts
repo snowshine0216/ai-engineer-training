@@ -10,30 +10,41 @@ const blankToUndefined = (v: unknown) =>
 const optionalNonEmptyString = z.preprocess(blankToUndefined, nonEmptyString.optional());
 const optionalUrl = z.preprocess(blankToUndefined, z.string().url().optional());
 
-const booleanFlagSchema = z
-  .enum(["true", "false", "1", "0"])
-  .optional()
-  .default("false")
-  .transform((v) => v === "true" || v === "1");
+const optionalBoolean = z.preprocess(
+  blankToUndefined,
+  z.enum(["true", "false", "1", "0"]).optional().transform((v) => v === undefined ? undefined : v === "true" || v === "1"),
+);
+
+const isVercel = (env: Record<string, string | undefined>): boolean => env.VERCEL === "1";
 
 export const serverEnvSchema = z.object({
   OPENAI_BASE_URL: z.string().url(),
   OPENAI_API_KEY: nonEmptyString,
   DEFAULT_MODEL: nonEmptyString,
-  // Langfuse — optional locally, required on the deployed demo checklist (not enforced in code)
   LANGFUSE_PUBLIC_KEY: optionalNonEmptyString,
   LANGFUSE_SECRET_KEY: optionalNonEmptyString,
   LANGFUSE_HOST: optionalUrl,
-  // Demo mode — hides the fake-failure toggle when false
-  DEMO_MODE: booleanFlagSchema,
-  // Best-effort per-process request budget for the public shared URL
   DEMO_REQUEST_BUDGET: z.coerce.number().int().positive().optional().default(50),
+  LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).optional().default("info"),
+  LOG_DIR: optionalNonEmptyString,
+  LOG_FILE_ENABLED: optionalBoolean,
 });
 
-export type ServerEnv = z.infer<typeof serverEnvSchema>;
+export type ServerEnvParsed = z.infer<typeof serverEnvSchema>;
+
+export type ServerEnv = ServerEnvParsed & {
+  LOG_DIR: string;
+  LOG_FILE_ENABLED: boolean;
+};
 
 const formatIssue = ({ path, message }: ZodIssue) =>
   `${path.join(".")}: ${message}`;
+
+const applyLoggerDefaults = (parsed: ServerEnvParsed, raw: Record<string, string | undefined>): ServerEnv => ({
+  ...parsed,
+  LOG_DIR: parsed.LOG_DIR ?? "logs",
+  LOG_FILE_ENABLED: parsed.LOG_FILE_ENABLED ?? !isVercel(raw),
+});
 
 export const parseServerEnv = (env: Record<string, string | undefined>): ServerEnv => {
   const result = serverEnvSchema.safeParse(env);
@@ -43,7 +54,7 @@ export const parseServerEnv = (env: Record<string, string | undefined>): ServerE
     throw new Error(`Invalid server environment: ${details}`);
   }
 
-  return result.data;
+  return applyLoggerDefaults(result.data, env);
 };
 
 export const getServerEnv = (): ServerEnv => parseServerEnv(process.env);
