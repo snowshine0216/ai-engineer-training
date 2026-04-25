@@ -1,3 +1,4 @@
+"use client";
 import { type FormEvent } from "react";
 
 type Props = {
@@ -5,9 +6,10 @@ type Props = {
   onChange: (v: string) => void;
   onSubmit: (prompt: string) => void;
   disabled: boolean;
+  placeholder?: string;
 };
 
-export function Composer({ value, onChange, onSubmit, disabled }: Props) {
+export function Composer({ value, onChange, onSubmit, disabled, placeholder }: Props) {
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     const trimmed = value.trim();
@@ -15,28 +17,42 @@ export function Composer({ value, onChange, onSubmit, disabled }: Props) {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <label htmlFor="prompt-input" style={{ fontSize: 13, color: "var(--muted)", fontWeight: 500 }}>
-        Your prompt
-      </label>
+    <form
+      onSubmit={handleSubmit}
+      style={{
+        display: "flex",
+        gap: 8,
+        padding: "12px 24px",
+        borderTop: "1px solid var(--line)",
+        background: "var(--panel)",
+      }}
+    >
       <textarea
         id="prompt-input"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            const trimmed = value.trim();
+            if (trimmed && !disabled) onSubmit(trimmed);
+          }
+        }}
         disabled={disabled}
-        rows={4}
+        rows={2}
         maxLength={4000}
-        placeholder="Ask anything — a messy ops prompt works best."
+        aria-label="Message"
+        placeholder={placeholder ?? "Ask anything…"}
         style={{
-          width: "100%",
-          padding: "12px 14px",
+          flex: 1,
+          padding: "10px 12px",
           border: "1px solid var(--line)",
           borderRadius: 8,
           fontSize: 15,
           fontFamily: "inherit",
           resize: "vertical",
           color: "var(--ink)",
-          background: "var(--panel)",
+          background: "var(--bg)",
           opacity: disabled ? 0.7 : 1,
         }}
       />
@@ -53,6 +69,7 @@ export function Composer({ value, onChange, onSubmit, disabled }: Props) {
           fontSize: 15,
           fontWeight: 500,
           opacity: disabled || !value.trim() ? 0.5 : 1,
+          cursor: disabled || !value.trim() ? "default" : "pointer",
         }}
         aria-label="Send prompt"
       >

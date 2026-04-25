@@ -18,8 +18,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# lib/    # removed: Python packaging artifact — not applicable for this JS/TS repo
+# lib64/  # removed: same
 parts/
 sdist/
 var/

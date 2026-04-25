@@ -1,4 +1,5 @@
 const WINDOW_MS = 60_000;
+export const BUDGET_WINDOW_SECONDS = WINDOW_MS / 1000;
 
 // Module-level state — per-worker on Vercel (one counter per warm instance).
 // The effective budget is limit × number of warm workers. Acceptable for a demo;

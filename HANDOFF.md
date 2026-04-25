@@ -1,74 +1,63 @@
 # Handoff Document
-*Last updated: 2026-04-24*
+*Last updated: 2026-04-25 13:06 GMT+8*
 
-## Goal
+## Status
 
-Build a Vercel-ready, interview-demo-quality split-screen chat app (`projects/chat-site`) that proves resilient AI workflow — not just a chat wrapper. The memorable demo moment: user sends one messy prompt, the system retries visibly, recovery is shown live, and a Langfuse trace link surfaces as evidence.
+**v0.3.0 implementation is complete.** All 32 tasks executed; typecheck, lint, 111 unit tests, and production build all pass.
 
-## Current Progress
+## What Was Built
 
-- **Brainstormed and reviewed** a full product spec (office-hours → eng-review → design-review). All reviews cleared (0 critical gaps, design score 9/10).
-- **Plan written and saved** to `docs/superpowers/plans/2026-04-24-resilient-chat-demo.md` in this worktree. The plan is comprehensive: 10 tasks, ~60 TDD steps, real code in every step — nothing left as TBD.
-- **Existing scaffold** already in place:
-  - `lib/config/env.ts` — Zod env schema (needs simplification per Task 2)
-  - `lib/ai/openai-provider.ts` — DI-injected OpenAI provider (needs simplification per Task 3)
-  - Passing unit tests: `tests/lib/config/env.test.ts`, `tests/lib/ai/openai-provider.test.ts`
-  - `@openai/agents` v0.8.5 already installed
-  - No `app/api/chat/route.ts` yet, no UI components yet, no Langfuse
-- **SDK streaming API confirmed** from reading `node_modules`:
-  - `run(agent, prompt, { stream: true })` → `Promise<StreamedRunResult>`
-  - `streamedResult.toTextStream({ compatibleWithNodeStreams: true })` → Node.js `Readable` of text chunks
-  - `streamedResult.completed` → `Promise<void>` when done
+| Phase | Tasks | Shipped |
+|---|---|---|
+| 1 — Logger + env | T1–5 | `.gitignore`, `LOG_LEVEL`/`LOG_DIR`/`LOG_FILE_ENABLED` (drops `DEMO_MODE`), `lib/logging`, provider debug→`logger.debug` |
+| 2 — Registries | T6–11 | `lib/prompts/`, `lib/tools/` (empty scaffold), `lib/agents/` with `buildAgent` + `PublicAgent` |
+| 3 — Streaming primitives | T12–15 | `<think>` parser (cross-chunk buffering), extended `StreamEvent` union, `toAgentInput`, `classifyError` in `lib/chat/errors.ts` |
+| 4 — Server | T16–19 | `run-agent.ts`, delete `run-demo.ts`, `GET /api/agents`, rewrite `POST /api/chat` for `{messages, agentId}` |
+| 5 — Client | T20–27 | delete dead components, `page-reducer.ts` for multi-turn, `ThinkingBlock`/`MessageBubble`/`MessageList`/`AgentPicker`, `Composer`, rewrite `app/page.tsx` |
+| 6 — Ship | T28–32 | multi-turn Playwright spec, CHANGELOG 0.3.0, README, version bump, verified |
 
-## What Worked
+## Verification Results
 
-- Reading `node_modules/@openai/agents-core/dist/result.d.ts` directly to get exact streaming API types — avoids guessing.
-- DI pattern in `openai-provider.ts` (inject `setDefaultOpenAIClient`, `setOpenAIAPI`, etc.) makes the provider fully testable without network calls.
-- Mocking `@openai/agents` at the module level in Vitest + faking `toTextStream()` as an async generator — clean isolation for run-demo tests.
-- NDJSON over a single `ReadableStream` (not SSE, not polling) keeps the transport simple and avoids split-brain state.
+```
+pnpm typecheck  ✅ zero errors
+pnpm lint       ✅ zero errors/warnings
+pnpm test       ✅ 111 tests / 17 files
+pnpm build      ✅ compiled + static generation OK
+pnpm test:e2e   ⏳ requires live LLM endpoint (OPENAI_BASE_URL + OPENAI_API_KEY)
+```
 
-## What Didn't Work
+## Branch
 
-- Nothing failed in this session — it was planning-only. The plan itself exists to avoid pitfalls discovered in eng/design review:
-  - **Don't use a second timeline channel or polling sidecar** — one ordered stream only
-  - **Don't expose demo-mode as a public toggle** — gate behind `DEMO_MODE` env flag
-  - **Don't block the HTTP response on Langfuse flush** — bounded 3-second timeout, then swallow
+`claude/upbeat-jemison-dc5da8` — ready to merge into `main`.
 
-## Next Steps
+Run `superpowers:finishing-a-development-branch` to open a PR or merge.
 
-1. **Execute the plan** using `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans`. The plan is at `docs/superpowers/plans/2026-04-24-resilient-chat-demo.md`.
-2. **Start with Task 1** (rename product copy) — it's 4 steps, no TDD, low risk, fast win.
-3. **Task 2 (env) and Task 3 (provider)** are CRITICAL regressions — do these before any new logic.
-4. **Task 5 (run-demo)** is the most complex — mock `@openai/agents` at the module level using `vi.mock`, fake `toTextStream` as an async generator.
-5. Before Task 8 (UI), run `pnpm dev` with a real `.env.local` to smoke-test the API route.
-6. E2E tests (Task 9) require `.env.local` with real keys. `DEMO_MODE=true` for the retry-recovery path.
+## Key Files Added/Changed
 
-## Key Files & Locations
+| File | Change |
+|------|--------|
+| `lib/logging/index.ts` | NEW — JSON-line console + file logger |
+| `lib/config/env.ts` | `LOG_LEVEL`/`LOG_DIR`/`LOG_FILE_ENABLED`; removed `DEMO_MODE` |
+| `lib/prompts/`, `lib/tools/`, `lib/agents/` | NEW registries (general + qa-coach agents) |
+| `lib/chat/think-parser.ts` | NEW — stateful `<think>` tag parser |
+| `lib/chat/run-agent.ts` | REPLACED `run-demo.ts` — registry-based, multi-turn |
+| `lib/chat/page-reducer.ts` | REBUILT for multi-turn `messages[]` model |
+| `lib/chat/history.ts` | NEW — `toAgentInput` for SDK input conversion |
+| `lib/chat/errors.ts` | NEW — `classifyError` extracted |
+| `lib/chat/stream-event.ts` | `thinking_delta`, `agentId` on accepted; removed `trace`/`interrupted` |
+| `app/api/agents/route.ts` | NEW — `GET /api/agents` |
+| `app/api/chat/route.ts` | REWRITTEN for `{messages, agentId}` |
+| `app/page.tsx` | REWRITTEN — single-pane with AgentPicker + MessageList |
+| `components/chat/thinking-block.tsx` | NEW |
+| `components/chat/message-bubble.tsx` | NEW |
+| `components/chat/message-list.tsx` | NEW |
+| `components/chat/agent-picker.tsx` | NEW |
+| `components/chat/composer.tsx` | Updated — `placeholder` prop, pinned layout |
+| 5 right-pane components | DELETED |
 
-| File | Status | Notes |
-|------|--------|-------|
-| `docs/superpowers/plans/2026-04-24-resilient-chat-demo.md` | ✅ Written | Full implementation plan — start here |
-| `lib/config/env.ts` | Needs simplification (Task 2) | Remove OPENAI_API_MODE, OPENAI_AGENTS_ENABLE_TRACING; add DEMO_MODE |
-| `lib/ai/openai-provider.ts` | Needs simplification (Task 3) | Hardcode chat_completions, remove tracing branches |
-| `lib/chat/stream-event.ts` | Not created yet (Task 4) | StreamEvent discriminated union wire contract |
-| `lib/chat/run-demo.ts` | Not created yet (Task 5) | Core orchestration: Agent, run(), retry, demo injection |
-| `app/api/chat/route.ts` | Not created yet (Task 6) | POST route, NDJSON stream, request budget |
-| `lib/telemetry/langfuse.ts` | Not created yet (Task 7) | Trace + noop fallback + bounded flush |
-| `components/chat/` | Not created yet (Task 8) | All UI components |
-| `app/page.tsx` | Placeholder (Task 8) | Full split-screen shell, stream consumer |
-| `tests/lib/chat/run-demo.test.ts` | Not created yet (Task 5) | Unit tests for orchestration |
-| `tests/app/api/chat/route.test.ts` | Not created yet (Task 6) | Route integration tests |
-| `tests/lib/telemetry/langfuse.test.ts` | Not created yet (Task 7) | Telemetry unit tests |
-| `tests/e2e/` | Not created yet (Task 9) | Playwright browser tests |
+## Context
 
-## Context & Notes
-
-- **Worktree:** `projects/chat-site/.claude/worktrees/funny-rosalind-e377ce` on branch `claude/funny-rosalind-e377ce`. Main branch is `main`.
-- **Package manager:** `pnpm`. Run commands from `projects/chat-site/`.
-- **Runtime:** Node.js 22 (not edge). The route uses `export const runtime = "nodejs"` — required for `@openai/agents` `Readable` stream support.
-- **`langfuse` package not yet installed** — Task 7 Step 1 runs `pnpm add langfuse`.
-- **`@playwright/test` not yet installed** — Task 9 Step 1 installs it.
-- **Env override pattern:** `@openai/agents` uses a global singleton for the OpenAI client. `initializeOpenAIProvider(env)` must be called once per route handler (not module-level) to set `baseURL`/`apiKey` for each request.
-- **Demo mode:** `DEMO_MODE=true` in `.env.local` injects a fake failure before attempt 1's first token — no network call is made for attempt 1, so the demo path is deterministic.
-- **Design system:** CSS custom properties in `globals.css`, Geist Sans / Geist Mono fonts, no shadcn/no Tailwind by design — keeps the bundle lean and the UI easy to audit.
-- **The spec:** `/Users/snow/.copilot/session-state/d6b256cf-16da-4bae-819d-8942d29aae24/plan.md` is the original brainstorm doc if you need to re-read requirements.
+- Worktree: `/Users/snow/.../projects/chat-site/.claude/worktrees/upbeat-jemison-dc5da8`
+- Working dir for pnpm: `projects/chat-site/`
+- Stack: Next.js 16, React 19, TypeScript 5.9, `@openai/agents` 0.8.5, Vitest 3, Playwright 1.59
+- Out of scope (deferred): multi-conversation sidebar, server-side persistence, tools, history compaction
