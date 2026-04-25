@@ -3,6 +3,13 @@ import { z, type ZodIssue } from "zod";
 
 const nonEmptyString = z.string().trim().min(1);
 
+// Treats "" and whitespace-only strings as absent so optional env vars
+// set to blank in .env files don't trip validation.
+const blankToUndefined = (v: unknown) =>
+  typeof v === "string" && !v.trim() ? undefined : v;
+const optionalNonEmptyString = z.preprocess(blankToUndefined, nonEmptyString.optional());
+const optionalUrl = z.preprocess(blankToUndefined, z.string().url().optional());
+
 const booleanFlagSchema = z
   .enum(["true", "false", "1", "0"])
   .optional()
@@ -14,9 +21,9 @@ export const serverEnvSchema = z.object({
   OPENAI_API_KEY: nonEmptyString,
   DEFAULT_MODEL: nonEmptyString,
   // Langfuse — optional locally, required on the deployed demo checklist (not enforced in code)
-  LANGFUSE_PUBLIC_KEY: nonEmptyString.optional(),
-  LANGFUSE_SECRET_KEY: nonEmptyString.optional(),
-  LANGFUSE_HOST: z.string().url().optional(),
+  LANGFUSE_PUBLIC_KEY: optionalNonEmptyString,
+  LANGFUSE_SECRET_KEY: optionalNonEmptyString,
+  LANGFUSE_HOST: optionalUrl,
   // Demo mode — hides the fake-failure toggle when false
   DEMO_MODE: booleanFlagSchema,
   // Best-effort per-process request budget for the public shared URL

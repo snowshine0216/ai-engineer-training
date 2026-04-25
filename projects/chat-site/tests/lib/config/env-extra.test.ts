@@ -86,4 +86,28 @@ describe("parseServerEnv — additional coverage", () => {
       parseServerEnv({ ...BASE_ENV, OPENAI_BASE_URL: "api.example.com/v1" }),
     ).toThrow("Invalid server environment:");
   });
+
+  it("treats empty-string Langfuse vars as absent, not a validation error", () => {
+    const env = parseServerEnv({
+      ...BASE_ENV,
+      LANGFUSE_PUBLIC_KEY: "",
+      LANGFUSE_SECRET_KEY: "",
+      LANGFUSE_HOST: "",
+    });
+    expect(env.LANGFUSE_PUBLIC_KEY).toBeUndefined();
+    expect(env.LANGFUSE_SECRET_KEY).toBeUndefined();
+    expect(env.LANGFUSE_HOST).toBeUndefined();
+  });
+
+  it("treats whitespace-only Langfuse vars as absent, not a validation error", () => {
+    const env = parseServerEnv({
+      ...BASE_ENV,
+      LANGFUSE_PUBLIC_KEY: "   ",
+      LANGFUSE_SECRET_KEY: "\t",
+      LANGFUSE_HOST: "  ",
+    });
+    expect(env.LANGFUSE_PUBLIC_KEY).toBeUndefined();
+    expect(env.LANGFUSE_SECRET_KEY).toBeUndefined();
+    expect(env.LANGFUSE_HOST).toBeUndefined();
+  });
 });
