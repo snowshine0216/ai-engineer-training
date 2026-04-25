@@ -24,6 +24,10 @@
 .DS_Store
 *.pem
 
+# logs (server-side logger output)
+/logs/
+*.log
+
 # debug
 npm-debug.log*
 yarn-debug.log*
