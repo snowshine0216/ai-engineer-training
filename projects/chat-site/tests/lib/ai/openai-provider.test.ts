@@ -1,10 +1,20 @@
 // tests/lib/ai/openai-provider.test.ts
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+
+vi.mock("@openai/agents", () => ({
+  OpenAIProvider: vi.fn().mockImplementation(() => ({})),
+  setDefaultModelProvider: vi.fn(),
+  setOpenAIAPI: vi.fn(),
+  setTracingDisabled: vi.fn(),
+}));
 
 import {
-  applyOpenAIProvider,
-  getOpenAIClientOptions,
-} from "../../../lib/ai/openai-provider";
+  OpenAIProvider,
+  setDefaultModelProvider,
+  setOpenAIAPI,
+  setTracingDisabled,
+} from "@openai/agents";
+import { initializeOpenAIProvider } from "../../../lib/ai/openai-provider";
 import type { ServerEnv } from "../../../lib/config/env";
 
 const makeEnv = (overrides: Partial<ServerEnv> = {}): ServerEnv => ({
@@ -19,37 +29,37 @@ const makeEnv = (overrides: Partial<ServerEnv> = {}): ServerEnv => ({
   ...overrides,
 });
 
-describe("getOpenAIClientOptions", () => {
-  it("maps env to baseURL and apiKey", () => {
-    const opts = getOpenAIClientOptions(makeEnv());
+describe("initializeOpenAIProvider", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
-    expect(opts).toEqual({
-      baseURL: "https://api.example.com/v1",
+  it("creates OpenAIProvider with apiKey and baseURL from env, forcing chat_completions mode", () => {
+    initializeOpenAIProvider(makeEnv());
+
+    expect(OpenAIProvider).toHaveBeenCalledWith({
       apiKey: "sk-test",
+      baseURL: "https://api.example.com/v1",
+      useResponses: false,
     });
   });
-});
 
-describe("applyOpenAIProvider", () => {
-  it("creates the client, sets it as default, locks chat_completions, disables tracing", () => {
-    const client = { kind: "openai-client" };
-    const createClient = vi.fn(() => client);
-    const setDefaultOpenAIClient = vi.fn();
-    const setOpenAIAPI = vi.fn();
-    const setTracingDisabled = vi.fn();
+  it("registers the provider instance as the global default model provider", () => {
+    initializeOpenAIProvider(makeEnv());
 
-    const returned = applyOpenAIProvider(
-      { baseURL: "https://api.example.com/v1", apiKey: "sk-test" },
-      { createClient, setDefaultOpenAIClient, setOpenAIAPI, setTracingDisabled },
-    );
+    const instance = vi.mocked(OpenAIProvider).mock.instances[0];
+    expect(setDefaultModelProvider).toHaveBeenCalledWith(instance);
+  });
 
-    expect(returned).toBe(client);
-    expect(createClient).toHaveBeenCalledWith({
-      baseURL: "https://api.example.com/v1",
-      apiKey: "sk-test",
-    });
-    expect(setDefaultOpenAIClient).toHaveBeenCalledWith(client);
+  it("selects chat_completions API mode globally", () => {
+    initializeOpenAIProvider(makeEnv());
+
     expect(setOpenAIAPI).toHaveBeenCalledWith("chat_completions");
+  });
+
+  it("disables tracing", () => {
+    initializeOpenAIProvider(makeEnv());
+
     expect(setTracingDisabled).toHaveBeenCalledWith(true);
   });
 });
