@@ -116,6 +116,7 @@ const executeImpl = async ({ city, forecast = false }: ExecuteArgs): Promise<str
 };
 
 export const _executeForTest = executeImpl;
+export const _clearCacheForTest = (): void => { cache.clear(); };
 
 export const amapWeather: ToolSpec = {
   id: "amap-weather",

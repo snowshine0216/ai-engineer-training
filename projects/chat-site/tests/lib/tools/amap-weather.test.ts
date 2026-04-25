@@ -1,6 +1,6 @@
 // tests/lib/tools/amap-weather.test.ts
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { _executeForTest, amapWeather } from "../../../lib/tools/amap-weather";
+import { _executeForTest, _clearCacheForTest, amapWeather } from "../../../lib/tools/amap-weather";
 
 const ok = (body: unknown) =>
   new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
@@ -46,6 +46,7 @@ describe("amapWeather", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    _clearCacheForTest();
   });
 
   it("exposes the registry id", () => {
