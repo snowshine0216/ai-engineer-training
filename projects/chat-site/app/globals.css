@@ -51,7 +51,7 @@ a:visited {
 .skip-link {
   position: absolute;
   left: -9999px;
-  font-size: 14px;
+  font-size: 16px;
   background: var(--panel);
   padding: 6px 12px;
   border-radius: 4px;

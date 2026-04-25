@@ -18,8 +18,8 @@ export const maxDuration = 60;
 
 const messageSchema = z.object({
   role: z.enum(["user", "assistant"]),
-  content: z.string().max(8000),
-  thinking: z.string().optional(),
+  content: z.string().trim().min(1).max(8000),
+  thinking: z.string().max(32000).optional(),
 });
 
 const requestSchema = z.object({

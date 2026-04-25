@@ -16,7 +16,8 @@ export const AGENT_REGISTRY: Record<AgentId, AgentSpec> = {
   [qaCoach.id]: qaCoach,
 };
 
-export const getAgent = (id: AgentId): AgentSpec | undefined => AGENT_REGISTRY[id];
+export const getAgent = (id: AgentId): AgentSpec | undefined =>
+  Object.hasOwn(AGENT_REGISTRY, id) ? AGENT_REGISTRY[id] : undefined;
 
 export const listAgents = (): AgentSpec[] => Object.values(AGENT_REGISTRY);
 

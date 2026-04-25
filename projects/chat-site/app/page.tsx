@@ -12,9 +12,10 @@ import type { PublicAgent } from "@/lib/agents/public";
 const readNDJSONStream = async (
   reader: ReadableStreamDefaultReader<Uint8Array>,
   dispatch: (action: Action) => void,
-): Promise<void> => {
+): Promise<{ receivedDone: boolean }> => {
   const decoder = new TextDecoder();
   let buffer = "";
+  let receivedDone = false;
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -26,11 +27,13 @@ const readNDJSONStream = async (
       try {
         const event = JSON.parse(line) as StreamEvent;
         dispatch({ type: "STREAM_EVENT", event });
+        if (event.kind === "done") receivedDone = true;
       } catch {
         // Malformed line — skip
       }
     }
   }
+  return { receivedDone };
 };
 
 export default function Page() {
@@ -59,17 +62,17 @@ export default function Page() {
   }, [state.agents, state.agentId]);
 
   const handleSubmit = useCallback(
-    async (prompt: string) => {
+    async (prompt: string, historyOverride?: UiMessage[]) => {
       if (!state.agentId) return;
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
 
       // Build the next messages array including the new user turn so the request reflects it.
-      const nextMessages = [
-        ...state.messages.filter((m) => m.role !== "assistant" || m.content.length > 0),
-        { role: "user" as const, content: prompt },
-      ];
+      const cleanHistory = (historyOverride ?? state.messages).filter(
+        (m) => m.role !== "assistant" || m.content.length > 0,
+      );
+      const nextMessages = [...cleanHistory, { role: "user" as const, content: prompt }];
 
       dispatch({ type: "SUBMIT", prompt });
 
@@ -100,7 +103,20 @@ export default function Page() {
           });
           return;
         }
-        await readNDJSONStream(resp.body.getReader(), dispatch);
+        const { receivedDone } = await readNDJSONStream(resp.body.getReader(), dispatch);
+        if (!receivedDone) {
+          dispatch({
+            type: "STREAM_EVENT",
+            event: {
+              eventId: crypto.randomUUID(),
+              kind: "failed",
+              attemptId: 1,
+              ts: Date.now(),
+              message: "Stream ended unexpectedly",
+              retryable: true,
+            },
+          });
+        }
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
           dispatch({
@@ -123,8 +139,10 @@ export default function Page() {
   const handleRetry = useCallback(() => {
     const lastUser = [...state.messages].reverse().find((m) => m.role === "user");
     if (!lastUser) return;
+    // Strip the last (failed) assistant turn so handleSubmit doesn't include stale partial content in history.
+    const historyWithoutFailedAssistant = state.messages.slice(0, -1);
     dispatch({ type: "RETRY" });
-    void handleSubmit(lastUser.content);
+    void handleSubmit(lastUser.content, historyWithoutFailedAssistant);
   }, [state.messages, handleSubmit]);
 
   const isRunning = state.status === "running";
