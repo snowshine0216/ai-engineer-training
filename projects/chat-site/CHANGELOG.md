@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [0.4.0] — 2026-04-25
 
+### Fixes
+- `amap-weather` / `tavily-search`: wrap `res.json()` in try/catch — returns graceful fallback instead of throwing when upstream returns HTML or malformed JSON (e.g. WAF maintenance pages).
+- `city-lookup`: fix `DATA_MAP` to keep the first occurrence of duplicate city names (e.g. `朝阳区` exists in both Beijing and Changchun — last-write-wins was silently returning the wrong city).
+- Performance: replace O(n) linear scans with O(1) `Map` lookups in city-lookup; eliminate redundant `entries()` iteration in TTL cache eviction path.
+- Test isolation: `_clearCacheForTest` helpers added to both tools; test fixtures now supply `AMAP_API_KEY` and `TAVILY_API_KEY`.
+
 ### Features
 - `amap-weather` tool: current conditions or multi-day forecast for any Chinese city via AMap. 10-minute per-process TTL cache, 10 s timeout, graceful Chinese fallback message on error.
 - `tavily-search` tool: web search with synthesized answer via Tavily REST API. 30-minute per-process TTL cache (normalized query key), 15 s timeout, graceful fallback.
