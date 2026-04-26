@@ -21,7 +21,6 @@ export type RunCustomerServiceAgentOptions = {
   emit: (event: StreamEvent) => void;
   env: RunnerEnv;
   signal?: AbortSignal;
-  attemptId?: number;
 };
 
 const makeEventId = () => randomUUID();
@@ -66,8 +65,8 @@ export const runCustomerServiceAgent = async ({
   emit,
   env,
   signal,
-  attemptId = 1,
 }: RunCustomerServiceAgentOptions): Promise<void> => {
+  const attemptId = 1;
   const logger = getLogger();
   const parser = createThinkParser();
   let repository: ReturnType<typeof createSqliteCustomerServiceRepository> | undefined;
@@ -80,13 +79,35 @@ export const runCustomerServiceAgent = async ({
 
   try {
     repository = createSqliteCustomerServiceRepository(env.CUSTOMER_SERVICE_DB_PATH);
-    emitTrace({ agentId: "customer-service-manager", phase: "manager_started", label: "CustomerServiceManager", summary: `开始处理订单 ${orderId}`, metadata: { orderId } });
+    emitTrace({
+      agentId: "customer-service-manager",
+      phase: "manager_started",
+      label: "CustomerServiceManager",
+      summary: `开始处理订单 ${orderId}`,
+      metadata: { orderId },
+    });
     const workflow = buildCustomerServiceWorkflow({ model: env.DEFAULT_MODEL, repository, emitTrace });
-    const streamed = await getRunner().run(workflow.manager, buildAgentInput(messages, orderId), { stream: true, signal });
-    const aborted = await streamAndFlush(streamed.toTextStream({ compatibleWithNodeStreams: true }), parser, emit, signal, attemptId);
+    const streamed = await getRunner().run(
+      workflow.manager,
+      buildAgentInput(messages, orderId),
+      { stream: true, signal },
+    );
+    const aborted = await streamAndFlush(
+      streamed.toTextStream({ compatibleWithNodeStreams: true }),
+      parser,
+      emit,
+      signal,
+      attemptId,
+    );
     if (aborted) return;
     await streamed.completed;
-    emitTrace({ agentId: "customer-service-manager", phase: "manager_completed", label: "CustomerServiceManager", summary: `完成订单 ${orderId} 的客服回复`, metadata: { orderId } });
+    emitTrace({
+      agentId: "customer-service-manager",
+      phase: "manager_completed",
+      label: "CustomerServiceManager",
+      summary: `完成订单 ${orderId} 的客服回复`,
+      metadata: { orderId },
+    });
     emit({ eventId: makeEventId(), kind: "done", attemptId, ts: Date.now() });
   } catch (err) {
     logger.error("customer-service agent failed", { orderId, error: err instanceof Error ? err.message : String(err) });

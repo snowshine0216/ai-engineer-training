@@ -1,14 +1,10 @@
 export type OrderRecord = {
   orderId: string;
-  customerName: string | null;
   status: string;
   paymentStatus: string;
-  paidAt: string | null;
   promisedShipBy: string | null;
   holdReason: string | null;
   warehouse: string | null;
-  skuSummary: string;
-  updatedAt: string;
 };
 
 export type LogisticsEventRecord = {
@@ -40,15 +36,11 @@ export type CustomerServiceRepository = {
 
 type OrderRow = {
   order_id: string;
-  customer_name: string | null;
   status: string;
   payment_status: string;
-  paid_at: string | null;
   promised_ship_by: string | null;
   hold_reason: string | null;
   warehouse: string | null;
-  sku_summary: string;
-  updated_at: string;
 };
 
 type ShipmentRow = {
@@ -73,15 +65,11 @@ type LogisticsEventRow = {
 
 export const mapOrderRow = (row: OrderRow): OrderRecord => ({
   orderId: row.order_id,
-  customerName: row.customer_name,
   status: row.status,
   paymentStatus: row.payment_status,
-  paidAt: row.paid_at,
   promisedShipBy: row.promised_ship_by,
   holdReason: row.hold_reason,
   warehouse: row.warehouse,
-  skuSummary: row.sku_summary,
-  updatedAt: row.updated_at,
 });
 
 export const mapLogisticsEventRow = (row: LogisticsEventRow): LogisticsEventRecord => ({

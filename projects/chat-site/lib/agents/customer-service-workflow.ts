@@ -10,6 +10,11 @@ import { withRetry } from "../customer-service/retry";
 import type { AgentTraceEvent } from "../chat/stream-event";
 import type { CustomerServiceRepository } from "../customer-service/repository";
 
+const AGENT_IDS = {
+  order: "order-status-agent",
+  logistics: "logistics-agent",
+} as const;
+
 type WorkflowOptions = {
   model: string;
   repository: CustomerServiceRepository;
@@ -37,7 +42,7 @@ export const buildCustomerServiceWorkflow = ({ model, repository, emitTrace }: W
     });
 
   const summarizeOrder = async (orderId: string): Promise<string> => {
-    const order = await withLookupRetry("order-status-agent", "OrderStatusAgent", "get_order_status", orderId, () =>
+    const order = await withLookupRetry(AGENT_IDS.order, "OrderStatusAgent", "get_order_status", orderId, () =>
       repository.findOrderById(orderId),
     );
     if (!order) return JSON.stringify({ orderId, found: false, summary: "未找到该订单。" });
@@ -56,7 +61,7 @@ export const buildCustomerServiceWorkflow = ({ model, repository, emitTrace }: W
   };
 
   const summarizeLogistics = async (orderId: string): Promise<string> => {
-    const logistics = await withLookupRetry("logistics-agent", "LogisticsAgent", "get_logistics_info", orderId, () =>
+    const logistics = await withLookupRetry(AGENT_IDS.logistics, "LogisticsAgent", "get_logistics_info", orderId, () =>
       repository.findLogisticsByOrderId(orderId),
     );
     if (!logistics) return JSON.stringify({ orderId, found: false, summary: "暂未查询到物流记录。" });
@@ -80,7 +85,7 @@ export const buildCustomerServiceWorkflow = ({ model, repository, emitTrace }: W
     parameters: z.object({ orderId: z.string().min(1) }),
     execute: async ({ orderId }) => {
       emitTrace({
-        agentId: "order-status-agent",
+        agentId: AGENT_IDS.order,
         phase: "tool_called",
         label: "OrderStatusAgent",
         summary: "查询订单状态",
@@ -90,7 +95,7 @@ export const buildCustomerServiceWorkflow = ({ model, repository, emitTrace }: W
         return await summarizeOrder(orderId);
       } catch (err) {
         emitTrace({
-          agentId: "order-status-agent",
+          agentId: AGENT_IDS.order,
           phase: "tool_failed",
           label: "OrderStatusAgent",
           summary: `查询失败：${err instanceof Error ? err.message : String(err)}`,
@@ -107,7 +112,7 @@ export const buildCustomerServiceWorkflow = ({ model, repository, emitTrace }: W
     parameters: z.object({ orderId: z.string().min(1) }),
     execute: async ({ orderId }) => {
       emitTrace({
-        agentId: "logistics-agent",
+        agentId: AGENT_IDS.logistics,
         phase: "tool_called",
         label: "LogisticsAgent",
         summary: "查询物流状态",
@@ -117,7 +122,7 @@ export const buildCustomerServiceWorkflow = ({ model, repository, emitTrace }: W
         return await summarizeLogistics(orderId);
       } catch (err) {
         emitTrace({
-          agentId: "logistics-agent",
+          agentId: AGENT_IDS.logistics,
           phase: "tool_failed",
           label: "LogisticsAgent",
           summary: `查询失败：${err instanceof Error ? err.message : String(err)}`,

@@ -9,6 +9,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    env: { NODE_NO_WARNINGS: "1" },
     include: ["tests/**/*.test.ts"],
     exclude: [
       "**/node_modules/**",
