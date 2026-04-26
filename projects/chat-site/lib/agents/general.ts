@@ -4,7 +4,7 @@ import type { AgentSpec } from "./types";
 export const general: AgentSpec = {
   id: "general",
   name: "General",
-  description: "A general-purpose helpful assistant.",
+  description: "Helpful assistant with weather (AMap) and web search (Tavily) tools.",
   promptId: "general",
-  toolIds: [],
+  toolIds: ["amap-weather", "tavily-search"],
 };

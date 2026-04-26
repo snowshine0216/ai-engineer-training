@@ -21,6 +21,8 @@ export const serverEnvSchema = z.object({
   OPENAI_BASE_URL: z.string().url(),
   OPENAI_API_KEY: nonEmptyString,
   DEFAULT_MODEL: nonEmptyString,
+  AMAP_API_KEY: nonEmptyString,
+  TAVILY_API_KEY: nonEmptyString,
   LANGFUSE_PUBLIC_KEY: optionalNonEmptyString,
   LANGFUSE_SECRET_KEY: optionalNonEmptyString,
   LANGFUSE_HOST: optionalUrl,

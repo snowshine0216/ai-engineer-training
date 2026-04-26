@@ -37,6 +37,8 @@ Required:
 - `OPENAI_BASE_URL` — OpenAI-compatible endpoint (e.g. LiteLLM)
 - `OPENAI_API_KEY`
 - `DEFAULT_MODEL`
+- `AMAP_API_KEY` — required by the `amap-weather` tool
+- `TAVILY_API_KEY` — required by the `tavily-search` tool
 
 Optional:
 - `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST` — server-side traces (URLs never sent to the browser)
@@ -44,6 +46,22 @@ Optional:
 - `LOG_LEVEL` — `debug` | `info` | `warn` | `error`, default `info`
 - `LOG_DIR` — log target dir, default `logs/` locally
 - `LOG_FILE_ENABLED` — `true` | `false`. Defaults to `true` locally, `false` on Vercel (filesystem is read-only outside `/tmp`)
+
+## Built-in tools
+
+The `general` agent ships with two tools:
+
+- **`amap_weather(city, forecast?)`** — Chinese city weather via AMap. 10-minute per-process cache.
+- **`tavily_search(query)`** — Web search with synthesized answer via Tavily. 30-minute per-process cache.
+
+The model decides when to call them based on the user prompt. Caches reset on
+process restart and are not shared across Vercel instances.
+
+To regenerate the city → adcode index from the bundled XLSX:
+
+```bash
+pnpm build-cities
+```
 
 ## Adding a new agent
 

@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] — 2026-04-26
+
+### Fixes
+- `amap-weather` / `tavily-search`: wrap `res.json()` in try/catch — returns graceful fallback instead of throwing when upstream returns HTML or malformed JSON (e.g. WAF maintenance pages).
+- `city-lookup`: fix `DATA_MAP` to keep the first occurrence of duplicate city names (e.g. `朝阳区` exists in both Beijing and Changchun — last-write-wins was silently returning the wrong city).
+- `city-lookup`: guard `findSubstring` against single-char input — `lookupAdcode("市")` previously matched an arbitrary city via the unconstrained `row.name.includes(q)` branch.
+- `city-lookup`: lift the 200-entry substring scan cap. The cap was added as a performance guard but it prevented correct matching of common cities (e.g. `北京市` at idx 426, `海淀区` at idx 431) for natural-language queries like `北京海淀区`. Memo bounds the cost instead.
+- Performance: replace O(n) linear scans with O(1) `Map` lookups in city-lookup; eliminate redundant `entries()` iteration in TTL cache eviction path.
+- Test isolation: `_clearCacheForTest` helpers added to both tools; test fixtures now supply `AMAP_API_KEY` and `TAVILY_API_KEY`.
+
+### Refactors
+- Extract `lib/tools/_http.ts` — shared `fetchWithTimeout` and `safeJson` used by `amap-weather` and `tavily-search`. Eliminates ~30 lines of duplicated fetch-with-timeout boilerplate.
+- `ToolId` narrowed from `string` to `"amap-weather" | "tavily-search"`. A typo in an agent's `toolIds` array is now a TypeScript compile error instead of a silent runtime `undefined`.
+- `ttl-cache`: route all writes through a private `writeEntry` so the `maxSize` invariant lives with the data structure.
+- `city-lookup`: extract `LOOKUP_TTL_MS` constant; update Match priority comment block with one concrete example per step.
+
+### Features
+- `amap-weather` tool: current conditions or multi-day forecast for any Chinese city via AMap. 10-minute per-process TTL cache, 10 s timeout, graceful Chinese fallback message on error.
+- `tavily-search` tool: web search with synthesized answer via Tavily REST API. 30-minute per-process TTL cache (normalized query key), 15 s timeout, graceful fallback.
+- `general` agent now registers both tools; system prompt instructs the model to call them only on clear intent (weather / current information) and skip them on greetings and trainable knowledge.
+- New `lib/cache/ttl-cache.ts` — tiny generic TTL cache factory (no shared globals).
+- New `scripts/build-city-index.mjs` — builds `lib/tools/amap-cities.json` from `data/AMap_adcode_citycode.xlsx` (run via `pnpm build-cities`).
+- New required env vars: `AMAP_API_KEY`, `TAVILY_API_KEY`. Validated by `parseServerEnv` at startup.
+
+### Tests
+- 33 new unit tests across `ttl-cache`, `city-lookup`, `amap-weather`, `tavily-search`, registry, and env (180 → 192 total).
+- All upstream calls fully mocked via `vi.spyOn(global, "fetch")` — no network in the test suite.
+- Memo tests strengthened to assert cache size growth (not just value equality).
+- Snippet trim assertion pinned to exactly 150 chars + ellipsis; `ttl-cache` overwrite-at-maxSize and `maxSize=1` edge cases added.
+
+### Notes
+- Caches are per-Node-process. A Vercel cold start or restart resets them. Multi-instance deployments do not share cache. Acceptable for the homework / single-instance demo; swap in `lru-cache` or KV if memory or hit ratio becomes a concern.
+- Tool `execute()` never throws to the SDK — every failure path returns a user-friendly Chinese string. The model relays the message to the user.
+
 ## [0.3.0] — 2026-04-25
 
 ### Features

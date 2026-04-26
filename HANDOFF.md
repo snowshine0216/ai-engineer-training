@@ -1,63 +1,85 @@
 # Handoff Document
-*Last updated: 2026-04-25 13:06 GMT+8*
+*Last updated: 2026-04-25 16:25 CST (GMT+8)*
 
-## Status
+## Goal
 
-**v0.3.0 implementation is complete.** All 32 tasks executed; typecheck, lint, 111 unit tests, and production build all pass.
+Implement a multi-task QA assistant per the brief at `projects/project1_1/项目描述.txt` — adding two real tools (AMap weather + Tavily search) to the existing `chat-site/` Next.js app. The deliverable lives in `projects/chat-site/`, **not** in `projects/project1_1/` (which has a stale Python scaffold that is intentionally being ignored).
 
-## What Was Built
+## Current Progress
 
-| Phase | Tasks | Shipped |
-|---|---|---|
-| 1 — Logger + env | T1–5 | `.gitignore`, `LOG_LEVEL`/`LOG_DIR`/`LOG_FILE_ENABLED` (drops `DEMO_MODE`), `lib/logging`, provider debug→`logger.debug` |
-| 2 — Registries | T6–11 | `lib/prompts/`, `lib/tools/` (empty scaffold), `lib/agents/` with `buildAgent` + `PublicAgent` |
-| 3 — Streaming primitives | T12–15 | `<think>` parser (cross-chunk buffering), extended `StreamEvent` union, `toAgentInput`, `classifyError` in `lib/chat/errors.ts` |
-| 4 — Server | T16–19 | `run-agent.ts`, delete `run-demo.ts`, `GET /api/agents`, rewrite `POST /api/chat` for `{messages, agentId}` |
-| 5 — Client | T20–27 | delete dead components, `page-reducer.ts` for multi-turn, `ThinkingBlock`/`MessageBubble`/`MessageList`/`AgentPicker`, `Composer`, rewrite `app/page.tsx` |
-| 6 — Ship | T28–32 | multi-turn Playwright spec, CHANGELOG 0.3.0, README, version bump, verified |
+- **Brainstorming complete.** Three locked decisions:
+  1. Agent placement → wire tools into existing `general` agent (no new agent).
+  2. City data → build-time JSON (`scripts/build-city-index.mjs` reads `.xlsx` once → `lib/tools/amap-cities.json`).
+  3. Tool depth → single weather tool with optional `forecast` flag; search locked to basic + include_answer + 5 results, only `query` exposed; in-memory TTL caching kept.
+- **Spec written and self-reviewed**:
+  `projects/chat-site/docs/superpowers/specs/2026-04-25-multi-task-qa-tools-design.md` (12 sections).
+- **Implementation plan written and self-reviewed**:
+  `projects/chat-site/docs/superpowers/plans/2026-04-25-multi-task-qa-tools-plan.md`
+  - 8 tasks, ~7 commits, TDD throughout (red → green → commit), bite-sized steps with full code blocks.
+  - Tests live under `tests/lib/...` (NOT colocated under `lib/`) — deviates from spec §3 to match `vitest.config.ts` `include: ["tests/**/*.test.ts"]`. Called out explicitly at the top of the plan's File Structure section.
+  - Two pre-execution issues caught during self-review and fixed inline:
+    1. AMap cache-hit test originally used 北京, colliding with the happy-path test's 北京/base cache entry — would have made `toHaveBeenCalledOnce()` fail. Switched to 杭州.
+    2. `tests/lib/agents/registry.test.ts` mocks `@openai/agents` but only stubs `Agent`. After Task 6 wires real tools into `general`, `buildAgent` → `resolveTools` → `amapWeather.toSDKTool()` calls `tool(...)` which is `undefined` under the existing mock. Plan now extends the mock to also stub `tool`.
+- **Awaiting**: user picks an execution mode (subagent-driven vs. inline) before code lands.
 
-## Verification Results
+## What Worked
 
-```
-pnpm typecheck  ✅ zero errors
-pnpm lint       ✅ zero errors/warnings
-pnpm test       ✅ 111 tests / 17 files
-pnpm build      ✅ compiled + static generation OK
-pnpm test:e2e   ⏳ requires live LLM endpoint (OPENAI_BASE_URL + OPENAI_API_KEY)
-```
+- Reading the existing chat-site code (`lib/agents/`, `lib/tools/`, `lib/prompts/`, `lib/chat/run-agent.ts`, `lib/ai/openai-provider.ts`, `lib/config/env.ts`) before drafting — the v0.3.0 architecture has tool/agent registries already scaffolded; `lib/tools/README.md` documents how to drop in new tools. The plan leverages all of this with zero changes to `app/` or `components/`.
+- Cross-checking the spec against the actual repo structure (vitest config, tsconfig, existing test patterns) caught the colocated-tests issue and the @openai/agents-mock issue **before** writing any code.
+- Reading the existing test files for shape (`tests/lib/agents/registry.test.ts`, `tests/lib/config/env.test.ts`) and using exactly that idiom — keeps the new tests visually consistent with the suite.
+- One question per turn during brainstorming kept the conversation tight.
 
-## Branch
+## What Didn't Work
 
-`claude/upbeat-jemison-dc5da8` — ready to merge into `main`.
+- **First-question miss in brainstorming**: I initially assumed the build target was `projects/project1_1/` (Python). The user's first reply corrected me: build into `projects/chat-site/` (Next.js). Lesson encoded for next time: when the user mentions a `.env` from a Next.js project, that's a strong signal the build target is also that Next.js project — treat the source-doc folder as reference material, not the build target.
 
-Run `superpowers:finishing-a-development-branch` to open a PR or merge.
+## Next Steps
 
-## Key Files Added/Changed
+1. **User picks execution mode:**
+   - **Option A (recommended):** Subagent-driven — invoke `superpowers:subagent-driven-development`. Fresh subagent per task, two-stage review between tasks, fast iteration.
+   - **Option B:** Inline — invoke `superpowers:executing-plans`. Execute tasks in the current session with checkpoints.
+2. **Execute the plan task-by-task.** Suggested order is the task numbering in the plan:
+   - Task 1: `lib/cache/ttl-cache.ts` + tests (pure, zero deps).
+   - Task 2: `pnpm add -D xlsx`; copy `.xlsx` to `data/`; write `scripts/build-city-index.mjs`; run it; commit `amap-cities.json`.
+   - Task 3: `lib/tools/city-lookup.ts` + tests (pure).
+   - Task 4: `lib/tools/amap-weather.ts` + tests (mocked fetch).
+   - Task 5: `lib/tools/tavily-search.ts` + tests (mocked fetch).
+   - Task 6: register both in `lib/tools/index.ts`; wire into `lib/agents/general.ts`; update `lib/prompts/general.ts` + `lib/config/env.ts`; update three existing tests (tools index, agents registry, env).
+   - Task 7: docs (`README.md`, `lib/tools/README.md`, `CHANGELOG.md` 0.4.0, `TODOS.md`); update `.env.example`; add `AMAP_API_KEY` to local `.env`.
+   - Task 8: verification gate (`pnpm typecheck && pnpm lint && pnpm test && pnpm build` + manual `pnpm dev` smoke per acceptance criteria).
+3. **Open the PR** once all 8 tasks ship green.
 
-| File | Change |
-|------|--------|
-| `lib/logging/index.ts` | NEW — JSON-line console + file logger |
-| `lib/config/env.ts` | `LOG_LEVEL`/`LOG_DIR`/`LOG_FILE_ENABLED`; removed `DEMO_MODE` |
-| `lib/prompts/`, `lib/tools/`, `lib/agents/` | NEW registries (general + qa-coach agents) |
-| `lib/chat/think-parser.ts` | NEW — stateful `<think>` tag parser |
-| `lib/chat/run-agent.ts` | REPLACED `run-demo.ts` — registry-based, multi-turn |
-| `lib/chat/page-reducer.ts` | REBUILT for multi-turn `messages[]` model |
-| `lib/chat/history.ts` | NEW — `toAgentInput` for SDK input conversion |
-| `lib/chat/errors.ts` | NEW — `classifyError` extracted |
-| `lib/chat/stream-event.ts` | `thinking_delta`, `agentId` on accepted; removed `trace`/`interrupted` |
-| `app/api/agents/route.ts` | NEW — `GET /api/agents` |
-| `app/api/chat/route.ts` | REWRITTEN for `{messages, agentId}` |
-| `app/page.tsx` | REWRITTEN — single-pane with AgentPicker + MessageList |
-| `components/chat/thinking-block.tsx` | NEW |
-| `components/chat/message-bubble.tsx` | NEW |
-| `components/chat/message-list.tsx` | NEW |
-| `components/chat/agent-picker.tsx` | NEW |
-| `components/chat/composer.tsx` | Updated — `placeholder` prop, pinned layout |
-| 5 right-pane components | DELETED |
+## Key Files & Locations
 
-## Context
+**Created this and prior session:**
+- `projects/chat-site/docs/superpowers/specs/2026-04-25-multi-task-qa-tools-design.md` — design spec.
+- `projects/chat-site/docs/superpowers/plans/2026-04-25-multi-task-qa-tools-plan.md` — implementation plan (canonical execution reference).
 
-- Worktree: `/Users/snow/.../projects/chat-site/.claude/worktrees/upbeat-jemison-dc5da8`
-- Working dir for pnpm: `projects/chat-site/`
-- Stack: Next.js 16, React 19, TypeScript 5.9, `@openai/agents` 0.8.5, Vitest 3, Playwright 1.59
-- Out of scope (deferred): multi-conversation sidebar, server-side persistence, tools, history compaction
+**Source materials (read-only inputs):**
+- `projects/project1_1/项目描述.txt` — the brief.
+- `projects/project1_1/AMap_adcode_citycode.xlsx` — city dataset to be copied to `projects/chat-site/data/` in Task 2.
+- `projects/chat-site/.env` — already has `TAVILY_API_KEY`; needs `AMAP_API_KEY=f3a328d8176dbfe490b1f0d12310d754` added in Task 7.
+
+**Existing chat-site infrastructure to leverage (no edits needed except the targeted ones in Task 6):**
+- `projects/chat-site/lib/tools/{types.ts, index.ts, README.md}` — registry pattern.
+- `projects/chat-site/lib/agents/{types.ts, index.ts, general.ts}` — agent registry + `buildAgent`.
+- `projects/chat-site/lib/prompts/{types.ts, index.ts, general.ts}` — prompt registry.
+- `projects/chat-site/lib/chat/run-agent.ts` — runner with retry + streaming + think-parsing (no changes).
+- `projects/chat-site/lib/config/env.ts` — zod-validated env schema (Task 6 adds 2 fields).
+- `projects/chat-site/lib/logging/index.ts` — structured logger; tools call `getLogger().info/warn(...)`.
+
+## Context & Notes
+
+- **Worktree**: `/Users/snow/Documents/Repository/ai-engineer-training/projects/chat-site/.claude/worktrees/magical-tereshkova-2297b0`
+- **Branch**: `claude/magical-tereshkova-2297b0`
+- **Working dir for the actual app**: `projects/chat-site/` (pnpm + Node 22 + Next.js 16 + TypeScript 5.9 + `@openai/agents` 0.8.5).
+- **Auto mode is active** — minimize interruptions, prefer action.
+- **User CLAUDE.md** mandates TDD (red-green-refactor, tests first) and functional programming (small modules of pure functions, no classes-with-mutable-state, immutable data flow). The plan respects this throughout.
+- **API keys**:
+  - AMap (provided in brief): `f3a328d8176dbfe490b1f0d12310d754`
+  - Tavily (already in chat-site `.env`): `tvly-dev-...` (full value in `.env`, not committed).
+  - LLM provider in chat-site `.env` is MiniMax (`MiniMax-M2.7`) via OpenAI-compatible base URL.
+- **Test convention** — `tests/lib/...` mirrors `lib/...`. Vitest config enforces this via `include: ["tests/**/*.test.ts"]`. The plan reflects this (correcting spec §3's colocated-test sketch).
+- **Module-level cache caveat** — both new tools own a module-scope `createTtlCache<string>()`. Tests in the same file share that cache across `it()` blocks; the plan's tests use distinct cities/queries per case to keep cache keys disjoint. If a future test needs to clear cache, expose a `_clearCacheForTest` from the tool module — do NOT add `vi.resetModules()` global hooks (slow + brittle).
+- **Out of scope** (per spec §11): persistent / cross-instance cache, dedicated multi-task-qa agent, tool-use UI badges, Playwright additions, fuzzy/pinyin city matching, streaming partial tool output.
+- **Repo also has `uv` workspace** at the parent level (`pyproject.toml`, `uv.toml` with Tsinghua mirror) for the Python weeks. Unrelated to this slice — chat-site is its own pnpm subproject.

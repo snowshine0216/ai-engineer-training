@@ -8,6 +8,8 @@ const makeEnv = (overrides: Partial<ServerEnv> = {}): ServerEnv => ({
   OPENAI_BASE_URL: "https://api.example.com/v1",
   OPENAI_API_KEY: "sk-test",
   DEFAULT_MODEL: "gpt-4o-mini",
+  AMAP_API_KEY: "amap-test",
+  TAVILY_API_KEY: "tavily-test",
   DEMO_REQUEST_BUDGET: 50,
   LANGFUSE_PUBLIC_KEY: undefined,
   LANGFUSE_SECRET_KEY: undefined,
