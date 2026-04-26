@@ -1,0 +1,40 @@
+<h2>Fine-Tuning Platform MVP Architecture</h2>
+<p class="subtitle">Standalone Python FastAPI app for Apple Silicon LoRA training with a future HTTP integration point for chat-site.</p>
+
+<div class="mockup">
+  <div class="mockup-header">System Boundary</div>
+  <div class="mockup-body">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-items:stretch">
+      <div class="placeholder" style="min-height:120px;text-align:left;padding:16px">
+        <div class="label">Browser UI</div>
+        <h3>FastAPI Pages</h3>
+        <p>Upload dataset, choose Apple Silicon preset, start jobs, view logs, inspect eval/export status.</p>
+      </div>
+      <div class="placeholder" style="min-height:120px;text-align:left;padding:16px">
+        <div class="label">Backend Core</div>
+        <h3>Job Orchestrator</h3>
+        <p>Validates inputs, writes manifests, launches SWIFT subprocesses, records state, streams logs.</p>
+      </div>
+      <div class="placeholder" style="min-height:120px;text-align:left;padding:16px">
+        <div class="label">Model Toolchain</div>
+        <h3>ModelScope SWIFT</h3>
+        <p>Runs LoRA SFT, adapter inference eval, merge/export, and optional later quantization.</p>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:center;margin:16px 0;color:#6b7280;font-size:14px">Dataset + config → job manifest → SWIFT command → artifacts + metrics</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="placeholder" style="min-height:110px;text-align:left;padding:16px">
+        <div class="label">Artifact Store</div>
+        <h3>Local Files</h3>
+        <p>datasets/, jobs/, logs/, outputs/, eval_reports/, merged_models/ stay out of git.</p>
+      </div>
+      <div class="placeholder" style="min-height:110px;text-align:left;padding:16px">
+        <div class="label">Future Consumer</div>
+        <h3>chat-site Integration</h3>
+        <p>Calls a FastAPI inference endpoint that returns intent JSON from the exported model.</p>
+      </div>
+    </div>
+  </div>
+</div>

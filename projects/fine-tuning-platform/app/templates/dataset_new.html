@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Upload Dataset</h1>
+<form action="/api/datasets" method="post" enctype="multipart/form-data">
+  <label>Training dataset <input name="training_dataset" type="file" accept=".jsonl" required></label>
+  <button type="submit">Upload</button>
+</form>
+{% endblock %}
