@@ -198,6 +198,14 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
+# Project-specific
+minimax.ipynb
+
+# swift-m5-lab: large artifacts
+swift-m5-lab/models/
+swift-m5-lab/datasets/
+swift-m5-lab/output/
+
 # Marimo
 marimo/_static/
 marimo/_lsp/
