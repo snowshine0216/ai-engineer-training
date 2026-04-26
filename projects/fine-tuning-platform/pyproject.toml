@@ -1,0 +1,23 @@
+[project]
+name = "fine-tuning-platform"
+version = "0.1.0"
+description = "FastAPI MVP for ModelScope SWIFT LoRA fine-tuning workflows"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "jinja2>=3.1.4",
+    "python-multipart>=0.0.12",
+    "pydantic>=2.10.0",
+    "httpx>=0.27.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "httpx>=0.27.2",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
