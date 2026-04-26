@@ -74,5 +74,6 @@ export const withRetry = async <T>(
     }
   }
 
-  return fn();
+  // unreachable: the loop always returns on success or throws on exhaustion/non-retryable
+  throw new Error("withRetry: maxAttempts must be >= 1");
 };
