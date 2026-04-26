@@ -10,9 +10,9 @@ import { AGENT_REGISTRY, getAgent, listAgents, buildAgent } from "../../../lib/a
 import { getPrompt } from "../../../lib/prompts";
 
 describe("agents registry", () => {
-  it("contains general and qa-coach with unique ids", () => {
+  it("contains customer-service with existing agents", () => {
     const ids = Object.keys(AGENT_REGISTRY).sort();
-    expect(ids).toEqual(["general", "qa-coach"]);
+    expect(ids).toEqual(["customer-service", "general", "qa-coach"]);
     const valIds = Object.values(AGENT_REGISTRY).map((s) => s.id);
     expect(new Set(valIds).size).toBe(valIds.length);
   });
@@ -23,7 +23,7 @@ describe("agents registry", () => {
   });
 
   it("listAgents returns all specs", () => {
-    expect(listAgents()).toHaveLength(2);
+    expect(listAgents()).toHaveLength(3);
   });
 
   it("every spec.promptId resolves in the prompt registry", () => {

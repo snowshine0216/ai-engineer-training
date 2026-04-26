@@ -30,6 +30,8 @@ export const serverEnvSchema = z.object({
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).optional().default("info"),
   LOG_DIR: optionalNonEmptyString,
   LOG_FILE_ENABLED: optionalBoolean,
+  CUSTOMER_SERVICE_DB_PATH: optionalNonEmptyString,
+  SHOW_AGENT_TRACE: optionalBoolean,
 });
 
 export type ServerEnvParsed = z.infer<typeof serverEnvSchema>;
@@ -37,6 +39,8 @@ export type ServerEnvParsed = z.infer<typeof serverEnvSchema>;
 export type ServerEnv = ServerEnvParsed & {
   LOG_DIR: string;
   LOG_FILE_ENABLED: boolean;
+  CUSTOMER_SERVICE_DB_PATH: string;
+  SHOW_AGENT_TRACE: boolean;
 };
 
 const formatIssue = ({ path, message }: ZodIssue) =>
@@ -46,6 +50,8 @@ const applyLoggerDefaults = (parsed: ServerEnvParsed, raw: Record<string, string
   ...parsed,
   LOG_DIR: parsed.LOG_DIR ?? "logs",
   LOG_FILE_ENABLED: parsed.LOG_FILE_ENABLED ?? !isVercel(raw),
+  CUSTOMER_SERVICE_DB_PATH: parsed.CUSTOMER_SERVICE_DB_PATH ?? "data/customer-service/customer-service.sqlite",
+  SHOW_AGENT_TRACE: parsed.SHOW_AGENT_TRACE ?? true,
 });
 
 export const parseServerEnv = (env: Record<string, string | undefined>): ServerEnv => {

@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] — 2026-04-26
+
+### Features
+- New customer service multi-agent chat mode. Include an order number in your message and the agent looks up real-time order and logistics details from a local SQLite database and replies in Chinese.
+- Three specialist sub-agents (OrderStatusAgent, LogisticsAgent, ReplySynthesisAgent) orchestrated via the OpenAI Agents SDK's multi-agent runner. Each specialist has a focused role: order facts, shipment tracking, and Chinese reply synthesis.
+- Real-time agent trace timeline in the chat UI shows which specialist agents were called, which tools fired, and whether any retries occurred (toggled by `SHOW_AGENT_TRACE` env var).
+- SQLite customer service repository with full schema, realistic seed data (10 orders + logistics events), and `pnpm seed:customer-service-db` script.
+- Retry policy for transient SQLite errors (`SQLITE_BUSY`, `SQLITE_LOCKED`) with configurable exponential backoff and jitter.
+- `CUSTOMER_SERVICE_DB_PATH` and `SHOW_AGENT_TRACE` added to the environment contract (`lib/config/env.ts`).
+
+### Fixes
+- `run-agent`: wrap the customer-service runner call in try/catch so the client always receives a `failed` event if the agent throws (previously the stream could end with no resolution event if the DB was unavailable).
+- `retry`: correct the guard comment ("unreachable" was wrong — the throw is reached when `maxAttempts` ≤ 0).
+- `trace`: use `!== undefined` guards for `orderId`/`toolName` metadata fields to match the existing handling of `attempt`/`nextDelayMs`.
+
+### Tests
+- 25 new unit tests: runner stream parsing, buffer chunk handling, trace emission and suppression, abort-signal early return, workflow tool execution (order and logistics found/not-found/retry paths), page-reducer SUBMIT and RETRY trace reset, retry policy edge cases (SQLITE_LOCKED, timeout, invalid_order_id, maxAttempts=0 guard). Tests: 220 → 245.
+
 ## [0.4.0] — 2026-04-26
 
 ### Fixes

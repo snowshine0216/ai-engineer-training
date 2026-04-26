@@ -48,6 +48,8 @@ const makeEnv = (overrides: Partial<ServerEnv> = {}): ServerEnv => ({
   LANGFUSE_PUBLIC_KEY: undefined,
   LANGFUSE_SECRET_KEY: undefined,
   LANGFUSE_HOST: undefined,
+  CUSTOMER_SERVICE_DB_PATH: "data/customer-service/customer-service.sqlite",
+  SHOW_AGENT_TRACE: true,
   ...overrides,
 });
 

@@ -165,4 +165,50 @@ describe("page-reducer", () => {
     expect(last.error).toBeUndefined();
     expect(retried.status).toBe("running");
   });
+
+  it("SUBMIT initializes traces as empty array on the assistant placeholder", () => {
+    const next = reducer({ ...initialState, agentId: "customer-service" }, { type: "SUBMIT", prompt: "订单 1001" });
+    expect(lastAssistant(next).traces).toEqual([]);
+  });
+
+  it("RETRY resets traces to empty array on the fresh assistant placeholder", () => {
+    const state = apply(
+      { ...initialState, agentId: "customer-service" },
+      { type: "SUBMIT", prompt: "hi" },
+      { type: "STREAM_EVENT", event: ev({
+        kind: "agent_trace",
+        agentId: "order-status-agent",
+        phase: "tool_called",
+        label: "OrderStatusAgent",
+        summary: "查询订单状态",
+        metadata: { orderId: "1001", toolName: "get_order_status" },
+      }, { ts: 1, eventId: "t1", attemptId: 1 }) },
+      { type: "STREAM_EVENT", event: ev({ kind: "failed", message: "x", retryable: true }, { ts: 2, eventId: "f1", attemptId: 1 }) },
+    );
+    expect(lastAssistant(state).traces).toHaveLength(1);
+    const retried = reducer(state, { type: "RETRY" });
+    expect(lastAssistant(retried).traces).toEqual([]);
+  });
+
+  it("STREAM_EVENT agent_trace appends trace entries to the last assistant message", () => {
+    const state = apply(
+      { ...initialState, agentId: "customer-service" },
+      { type: "SUBMIT", prompt: "订单 1001 为什么没发货" },
+      { type: "STREAM_EVENT", event: ev({
+        kind: "agent_trace",
+        agentId: "order-status-agent",
+        phase: "tool_called",
+        label: "OrderStatusAgent",
+        summary: "查询订单状态",
+        metadata: { orderId: "1001", toolName: "get_order_status" },
+      }, { ts: 10, eventId: "trace-1", attemptId: 1 }) },
+    );
+
+    expect(lastAssistant(state).traces).toEqual([
+      expect.objectContaining({
+        phase: "tool_called",
+        summary: "查询订单状态",
+      }),
+    ]);
+  });
 });

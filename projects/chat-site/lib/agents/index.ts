@@ -8,12 +8,14 @@ import { getPrompt } from "../prompts";
 import { toSDKTool } from "../tools";
 import { general } from "./general";
 import { qaCoach } from "./qa-coach";
+import { customerService } from "./customer-service";
 
 export type { AgentId, AgentSpec } from "./types";
 
 export const AGENT_REGISTRY: Record<AgentId, AgentSpec> = {
   [general.id]: general,
   [qaCoach.id]: qaCoach,
+  [customerService.id]: customerService,
 };
 
 export const getAgent = (id: AgentId): AgentSpec | undefined =>
