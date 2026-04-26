@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Fine-Tuning Platform</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 960px; }
+      nav a { margin-right: 1rem; }
+      label { display: block; margin-top: 1rem; }
+      input, button { font: inherit; padding: 0.4rem; }
+      pre { background: #f6f8fa; padding: 1rem; overflow: auto; }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a href="/">Jobs</a>
+      <a href="/datasets/new">Upload Dataset</a>
+      <a href="/jobs/new">New Job</a>
+      <a href="/predict">Predict</a>
+    </nav>
+    {% block content %}{% endblock %}
+  </body>
+</html>

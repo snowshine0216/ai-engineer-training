@@ -3,8 +3,9 @@ from dataclasses import asdict
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from app.domain.datasets import parse_jsonl
@@ -49,6 +50,23 @@ class PredictIntentRequest(BaseModel):
 def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | None = None) -> FastAPI:
     app_root = root or Path(".")
     app = FastAPI(title="Fine-Tuning Platform", version="0.1.0")
+    templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+
+    @app.get("/")
+    def index(request: Request):
+        return templates.TemplateResponse(request=request, name="index.html")
+
+    @app.get("/datasets/new")
+    def dataset_new(request: Request):
+        return templates.TemplateResponse(request=request, name="dataset_new.html")
+
+    @app.get("/jobs/new")
+    def job_new(request: Request):
+        return templates.TemplateResponse(request=request, name="job_new.html")
+
+    @app.get("/predict")
+    def predict_page(request: Request):
+        return templates.TemplateResponse(request=request, name="predict.html")
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
