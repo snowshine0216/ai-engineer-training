@@ -29,3 +29,15 @@ def test_upload_dataset_reports_validation_errors(tmp_path):
 
     assert response.status_code == 400
     assert response.json()["issues"] == [{"row_number": 1, "message": "row is not valid JSON"}]
+
+
+def test_upload_dataset_returns_400_for_binary_file(tmp_path):
+    client = TestClient(create_app(root=tmp_path))
+
+    response = client.post(
+        "/api/datasets",
+        files={"training_dataset": ("binary.bin", b"\x80\x81\x82\xff\xfe", "application/octet-stream")},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["issues"][0]["message"] == "file must be UTF-8 encoded"

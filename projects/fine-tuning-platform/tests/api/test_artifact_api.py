@@ -57,6 +57,17 @@ def test_eval_route_returns_400_for_invalid_job_id(tmp_path):
     assert response.status_code == 400
 
 
+def test_eval_route_returns_400_for_mismatched_labels_and_responses(tmp_path):
+    client = TestClient(create_app(root=tmp_path))
+
+    response = client.post(
+        "/api/jobs/job-aabbccddeeff/eval",
+        json={"labels": ["a", "b"], "responses": ['{"intent":"a","confidence":1.0}']},
+    )
+
+    assert response.status_code == 400
+
+
 def test_predict_intent_validates_json_with_fake_inference(tmp_path):
     client = TestClient(create_app(root=tmp_path, infer_raw=lambda text, artifact_id: '{"intent":"weather_query","confidence":0.91}'))
 

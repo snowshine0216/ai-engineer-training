@@ -211,7 +211,10 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
     def eval_job(job_id: str, request: EvalRequest) -> dict[str, object]:
         if not _JOB_ID_RE.match(job_id):
             raise HTTPException(status_code=400, detail="invalid job_id format")
-        report = compute_intent_metrics(labels=request.labels, responses=request.responses)
+        try:
+            report = compute_intent_metrics(labels=request.labels, responses=request.responses)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"job_id": job_id, "report": asdict(report)}
 
     @app.post("/api/predict-intent")
