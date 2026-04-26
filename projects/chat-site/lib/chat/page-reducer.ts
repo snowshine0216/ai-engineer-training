@@ -1,12 +1,13 @@
 // lib/chat/page-reducer.ts
 import type { ConversationMessage } from "./history";
-import type { StreamEvent } from "./stream-event";
+import type { AgentTraceEvent, StreamEvent } from "./stream-event";
 import type { PublicAgent } from "../agents/public";
 
 export type AssistantMessage = ConversationMessage & {
   role: "assistant";
   agentId?: string;
   error?: string;
+  traces?: AgentTraceEvent[];
 };
 
 export type UiMessage =
@@ -102,6 +103,14 @@ const handleStreamEvent = (state: PageState, event: StreamEvent): PageState => {
         retrying: false,
         messages: updateLastAssistant(state.messages, (m) => ({ ...m, error: event.message })),
       };
+    case "agent_trace":
+      return {
+        ...state,
+        messages: updateLastAssistant(state.messages, (m) => ({
+          ...m,
+          traces: [...(m.traces ?? []), event],
+        })),
+      };
   }
 };
 
@@ -120,7 +129,7 @@ export const reducer = (state: PageState, action: Action): PageState => {
         messages: [
           ...state.messages,
           { role: "user", content: action.prompt },
-          { role: "assistant", content: "", thinking: "" },
+          { role: "assistant", content: "", thinking: "", traces: [] },
         ],
         pickerLocked: true,
         status: "running",
@@ -141,6 +150,7 @@ export const reducer = (state: PageState, action: Action): PageState => {
           role: "assistant",
           content: "",
           thinking: "",
+          traces: [],
         })),
       };
     case "NEW_CHAT":

@@ -1,5 +1,6 @@
 "use client";
 import { ThinkingBlock } from "./thinking-block";
+import { AgentTrace } from "./agent-trace";
 import type { UiMessage } from "@/lib/chat/page-reducer";
 import type { PublicAgent } from "@/lib/agents/public";
 
@@ -68,6 +69,8 @@ export function MessageBubble({
           isActive={isStreaming && (message.content?.length ?? 0) === 0}
           durationMs={isLast ? thinkingDurationMs : null}
         />
+
+        <AgentTrace traces={message.traces ?? []} />
 
         {message.content.length > 0 && (
           <div aria-live={isStreaming ? "polite" : undefined} style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>

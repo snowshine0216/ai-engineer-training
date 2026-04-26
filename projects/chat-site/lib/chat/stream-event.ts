@@ -59,6 +59,31 @@ export type FailedEvent = {
   retryable: boolean;
 };
 
+export type AgentTraceEvent = {
+  eventId: string;
+  kind: "agent_trace";
+  attemptId: number;
+  ts: number;
+  agentId: string;
+  phase:
+    | "manager_started"
+    | "specialist_started"
+    | "tool_called"
+    | "retry_scheduled"
+    | "tool_succeeded"
+    | "tool_failed"
+    | "specialist_completed"
+    | "manager_completed";
+  label: string;
+  summary: string;
+  metadata?: {
+    orderId?: string;
+    toolName?: string;
+    attempt?: number;
+    nextDelayMs?: number;
+  };
+};
+
 export type StreamEvent =
   | AcceptedEvent
   | ThinkingDeltaEvent
@@ -66,4 +91,5 @@ export type StreamEvent =
   | RetryingEvent
   | RecoveredEvent
   | DoneEvent
-  | FailedEvent;
+  | FailedEvent
+  | AgentTraceEvent;

@@ -165,4 +165,26 @@ describe("page-reducer", () => {
     expect(last.error).toBeUndefined();
     expect(retried.status).toBe("running");
   });
+
+  it("STREAM_EVENT agent_trace appends trace entries to the last assistant message", () => {
+    const state = apply(
+      { ...initialState, agentId: "customer-service" },
+      { type: "SUBMIT", prompt: "订单 1001 为什么没发货" },
+      { type: "STREAM_EVENT", event: ev({
+        kind: "agent_trace",
+        agentId: "order-status-agent",
+        phase: "tool_called",
+        label: "OrderStatusAgent",
+        summary: "查询订单状态",
+        metadata: { orderId: "1001", toolName: "get_order_status" },
+      }, { ts: 10, eventId: "trace-1", attemptId: 1 }) },
+    );
+
+    expect(lastAssistant(state).traces).toEqual([
+      expect.objectContaining({
+        phase: "tool_called",
+        summary: "查询订单状态",
+      }),
+    ]);
+  });
 });
