@@ -12,9 +12,16 @@ describe("prompts registry", () => {
     expect(getPrompt("nope")).toBeUndefined();
   });
 
+  it("registers customer service prompts", () => {
+    expect(getPrompt("customer-service-manager")?.text).toContain("CustomerServiceManager");
+    expect(getPrompt("customer-service-order")?.text).toContain("OrderStatusAgent");
+    expect(getPrompt("customer-service-logistics")?.text).toContain("LogisticsAgent");
+    expect(getPrompt("customer-service-reply")?.text).toContain("ReplySynthesisAgent");
+  });
+
   it("listPrompts returns all registered prompts", () => {
     const ids = listPrompts().map((p) => p.id).sort();
-    expect(ids).toEqual(["general", "qa-coach"]);
+    expect(ids).toEqual(["customer-service-logistics", "customer-service-manager", "customer-service-order", "customer-service-reply", "general", "qa-coach"]);
   });
 
   it("every prompt id is unique within the registry", () => {
