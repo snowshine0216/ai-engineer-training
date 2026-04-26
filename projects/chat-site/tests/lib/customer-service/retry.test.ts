@@ -45,4 +45,32 @@ describe("customer service retry", () => {
     ).rejects.toBe(err);
     expect(sleep).toHaveBeenCalledTimes(2);
   });
+
+  it("classifies SQLITE_LOCKED as retryable", () => {
+    const err = Object.assign(new Error("locked"), { code: "SQLITE_LOCKED" });
+    expect(classifyCustomerServiceError(err)).toEqual({ retryable: true, code: "SQLITE_LOCKED", reason: "SQLite is locked" });
+  });
+
+  it("classifies timeout as retryable", () => {
+    const err = Object.assign(new Error("timed out"), { code: "timeout" });
+    expect(classifyCustomerServiceError(err)).toEqual({ retryable: true, code: "timeout", reason: "Lookup timed out" });
+  });
+
+  it("classifies invalid_order_id as non-retryable", () => {
+    const err = Object.assign(new Error("bad id"), { code: "invalid_order_id" });
+    expect(classifyCustomerServiceError(err)).toEqual({ retryable: false, code: "invalid_order_id", reason: "Order id is invalid" });
+  });
+
+  it("classifies unknown Error code as non-retryable using the error message as reason", () => {
+    const err = Object.assign(new Error("something weird"), { code: "some_unknown_code" });
+    expect(classifyCustomerServiceError(err)).toEqual({ retryable: false, code: "some_unknown_code", reason: "something weird" });
+  });
+
+  it("classifies a non-Error value as non-retryable with generic reason", () => {
+    expect(classifyCustomerServiceError("a string error")).toEqual({
+      retryable: false,
+      code: "unknown",
+      reason: "Unknown customer service error",
+    });
+  });
 });
