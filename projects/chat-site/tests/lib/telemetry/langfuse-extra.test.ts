@@ -17,6 +17,8 @@ const makeEnv = (overrides: Partial<ServerEnv> = {}): ServerEnv => ({
   LOG_LEVEL: "info" as const,
   LOG_DIR: "logs",
   LOG_FILE_ENABLED: false,
+  CUSTOMER_SERVICE_DB_PATH: "data/customer-service/customer-service.sqlite",
+  SHOW_AGENT_TRACE: true,
   ...overrides,
 });
 
