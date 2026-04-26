@@ -47,9 +47,3 @@ export const customerServiceReply: PromptSpec = {
   ].join("\n"),
 };
 
-export const customerServicePrompts = [
-  customerServiceManager,
-  customerServiceOrder,
-  customerServiceLogistics,
-  customerServiceReply,
-];
