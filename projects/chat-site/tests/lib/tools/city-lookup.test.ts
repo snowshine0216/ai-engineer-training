@@ -62,9 +62,12 @@ describe("lookupAdcode", () => {
     expect(lookupAdcode("火星")).toBeUndefined();
   });
 
-  it("returns undefined for empty input", () => {
+  it("returns undefined for empty or single-char input", () => {
     expect(lookupAdcode("")).toBeUndefined();
     expect(lookupAdcode("   ")).toBeUndefined();
+    // Single Chinese chars like "市"/"区" must not match arbitrary cities via substring
+    expect(lookupAdcode("市")).toBeUndefined();
+    expect(lookupAdcode("区")).toBeUndefined();
   });
 
   it("memoizes repeated lookups (cache size grows once for the same key)", () => {
