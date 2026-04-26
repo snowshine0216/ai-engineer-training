@@ -43,4 +43,14 @@ describe("customer service trace", () => {
       orderId: "1001",
     }));
   });
+
+  it("preserves attempt: 0 in metadata", () => {
+    const event = makeAgentTraceEvent({
+      eventId: "e1", attemptId: 1, ts: 0,
+      agentId: "a", phase: "retry_scheduled",
+      label: "L", summary: "S",
+      metadata: { orderId: "1001", attempt: 0, nextDelayMs: 0 },
+    });
+    expect(event.metadata).toMatchObject({ attempt: 0, nextDelayMs: 0 });
+  });
 });

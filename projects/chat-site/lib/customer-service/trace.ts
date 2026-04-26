@@ -13,8 +13,8 @@ export const makeAgentTraceEvent = (input: MakeTraceInput): AgentTraceEvent => (
     ? {
         ...(input.metadata.orderId ? { orderId: input.metadata.orderId } : {}),
         ...(input.metadata.toolName ? { toolName: input.metadata.toolName } : {}),
-        ...(input.metadata.attempt ? { attempt: input.metadata.attempt } : {}),
-        ...(input.metadata.nextDelayMs ? { nextDelayMs: input.metadata.nextDelayMs } : {}),
+        ...(input.metadata.attempt !== undefined ? { attempt: input.metadata.attempt } : {}),
+        ...(input.metadata.nextDelayMs !== undefined ? { nextDelayMs: input.metadata.nextDelayMs } : {}),
       }
     : undefined,
 });
