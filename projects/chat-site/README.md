@@ -46,6 +46,8 @@ Optional:
 - `LOG_LEVEL` — `debug` | `info` | `warn` | `error`, default `info`
 - `LOG_DIR` — log target dir, default `logs/` locally
 - `LOG_FILE_ENABLED` — `true` | `false`. Defaults to `true` locally, `false` on Vercel (filesystem is read-only outside `/tmp`)
+- `CUSTOMER_SERVICE_DB_PATH` — SQLite DB file path for the customer service agent, default `data/customer-service/customer-service.sqlite`
+- `SHOW_AGENT_TRACE` — `true` | `false`. When `true` (default), agent trace events are streamed to the chat UI. When `false`, they stay in server logs/traces only.
 
 ## Built-in tools
 
