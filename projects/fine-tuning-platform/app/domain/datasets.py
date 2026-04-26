@@ -114,7 +114,8 @@ def split_train_eval(rows: list[DatasetRow], eval_ratio: float = 0.2, seed: int 
     if not 0 < eval_ratio < 1:
         raise ValueError("eval_ratio must be between 0 and 1")
     indexed_rows = list(enumerate(rows))
-    shuffled = sorted(indexed_rows, key=lambda item: Random(f"{seed}:{item[0]}").random())
+    rng = Random(seed)
+    shuffled = sorted(indexed_rows, key=lambda _: rng.random())
     eval_count = max(1, int(round(len(rows) * eval_ratio))) if len(rows) > 1 else 0
     eval_indexes = {index for index, _ in shuffled[:eval_count]}
     train = [row for index, row in indexed_rows if index not in eval_indexes]

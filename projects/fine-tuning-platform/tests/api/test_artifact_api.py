@@ -23,6 +23,14 @@ def test_quantize_route_returns_post_merge_command(tmp_path):
     assert response.json()["artifact_paths"]["quantized_model_dir"].endswith("/quantized_models/job-aabbccddeeff-bnb-int4")
 
 
+def test_quantize_route_returns_400_for_invalid_quant_method(tmp_path):
+    client = TestClient(create_app(root=tmp_path))
+
+    response = client.post("/api/jobs/job-aabbccddeeff/quantize", json={"merged_model_dir": "merged_models/job-aabbccddeeff", "quant_bits": 4, "quant_method": "../../etc"})
+
+    assert response.status_code == 400
+
+
 def test_eval_route_returns_metrics(tmp_path):
     client = TestClient(create_app(root=tmp_path))
 
@@ -36,6 +44,17 @@ def test_eval_route_returns_metrics(tmp_path):
 
     assert response.status_code == 200
     assert response.json()["report"]["correct"] == 1
+
+
+def test_eval_route_returns_400_for_invalid_job_id(tmp_path):
+    client = TestClient(create_app(root=tmp_path))
+
+    response = client.post(
+        "/api/jobs/not-a-valid-job-id/eval",
+        json={"labels": ["a"], "responses": ['{"intent":"a","confidence":1.0}']},
+    )
+
+    assert response.status_code == 400
 
 
 def test_predict_intent_validates_json_with_fake_inference(tmp_path):

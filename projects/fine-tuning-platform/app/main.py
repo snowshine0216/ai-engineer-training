@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from app.domain.datasets import parse_jsonl
-from app.domain.jobs import JobStatus
+from app.domain.jobs import JobStatus, transition
 from app.domain.metrics import compute_intent_metrics
 from app.domain.swift_commands import (
     AppleSiliconTrainingConfig,
@@ -42,6 +42,10 @@ class QuantizeRequest(BaseModel):
 class EvalRequest(BaseModel):
     labels: list[str]
     responses: list[str]
+
+
+class UpdateStatusRequest(BaseModel):
+    status: str
 
 
 class PredictIntentRequest(BaseModel):
@@ -77,6 +81,7 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
     _DATASET_ID_RE = re.compile(r"^dataset-[a-f0-9]{12}$")
     _JOB_ID_RE = re.compile(r"^job-[a-f0-9]{12}$")
     _QUANT_BITS_ALLOWED = {4, 8}
+    _QUANT_METHOD_ALLOWED = {"bnb", "awq", "gptq", "auto_round"}
 
     @app.post("/api/datasets", response_model=None)
     async def upload_dataset(training_dataset: UploadFile = File(...)) -> dict[str, object] | JSONResponse:
@@ -147,6 +152,8 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
             raise HTTPException(status_code=400, detail="invalid job_id format")
         if request.quant_bits not in _QUANT_BITS_ALLOWED:
             raise HTTPException(status_code=400, detail=f"quant_bits must be one of {sorted(_QUANT_BITS_ALLOWED)}")
+        if request.quant_method not in _QUANT_METHOD_ALLOWED:
+            raise HTTPException(status_code=400, detail=f"quant_method must be one of {sorted(_QUANT_METHOD_ALLOWED)}")
         quantized_dir = app_root / "quantized_models" / f"{job_id}-{request.quant_method}-int{request.quant_bits}"
         command = build_quantize_command(
             merged_model_dir=Path(request.merged_model_dir),
@@ -156,8 +163,54 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
         )
         return {"job_id": job_id, "command": command.argv, "artifact_paths": {"quantized_model_dir": quantized_dir.as_posix()}}
 
+    @app.get("/api/jobs")
+    def list_jobs() -> dict[str, object]:
+        repo = JsonJobRepository(app_root / "jobs")
+        records = repo.list()
+        return {"jobs": [{"job_id": r.job_id, "status": r.status.value, "dataset_id": r.dataset_id} for r in records]}
+
+    @app.get("/api/jobs/{job_id}")
+    def get_job(job_id: str) -> dict[str, object]:
+        if not _JOB_ID_RE.match(job_id):
+            raise HTTPException(status_code=400, detail="invalid job_id format")
+        repo = JsonJobRepository(app_root / "jobs")
+        try:
+            record = repo.get(job_id)
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail=f"job {job_id!r} not found")
+        return {"job_id": record.job_id, "status": record.status.value, "dataset_id": record.dataset_id, "command": record.command, "artifact_paths": record.artifact_paths}
+
+    @app.patch("/api/jobs/{job_id}/status")
+    def update_job_status(job_id: str, request: UpdateStatusRequest) -> dict[str, object]:
+        if not _JOB_ID_RE.match(job_id):
+            raise HTTPException(status_code=400, detail="invalid job_id format")
+        try:
+            new_status = JobStatus(request.status)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"unknown status: {request.status!r}")
+        repo = JsonJobRepository(app_root / "jobs")
+        try:
+            record = repo.get(job_id)
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail=f"job {job_id!r} not found")
+        try:
+            validated = transition(record.status, new_status)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        updated = JobRecord(
+            job_id=record.job_id,
+            status=validated,
+            dataset_id=record.dataset_id,
+            command=record.command,
+            artifact_paths=record.artifact_paths,
+        )
+        repo.save(updated)
+        return {"job_id": updated.job_id, "status": updated.status.value}
+
     @app.post("/api/jobs/{job_id}/eval")
     def eval_job(job_id: str, request: EvalRequest) -> dict[str, object]:
+        if not _JOB_ID_RE.match(job_id):
+            raise HTTPException(status_code=400, detail="invalid job_id format")
         report = compute_intent_metrics(labels=request.labels, responses=request.responses)
         return {"job_id": job_id, "report": asdict(report)}
 
