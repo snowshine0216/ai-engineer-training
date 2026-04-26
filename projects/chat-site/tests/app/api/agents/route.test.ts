@@ -24,10 +24,10 @@ describe("GET /api/agents", () => {
     }
   });
 
-  it("includes the general and qa-coach agents", async () => {
+  it("includes the general, qa-coach, and customer-service agents", async () => {
     const resp = await GET();
     const body = await resp.json();
     const ids = body.agents.map((a: { id: string }) => a.id).sort();
-    expect(ids).toEqual(["general", "qa-coach"]);
+    expect(ids).toEqual(["customer-service", "general", "qa-coach"]);
   });
 });
