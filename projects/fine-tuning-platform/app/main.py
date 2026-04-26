@@ -1,5 +1,7 @@
 from collections.abc import Callable
 from dataclasses import asdict
+import asyncio
+import re
 from pathlib import Path
 from uuid import uuid4
 
@@ -72,9 +74,16 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
     def health() -> dict[str, str]:
         return {"status": "ok", "service": "fine-tuning-platform"}
 
+    _DATASET_ID_RE = re.compile(r"^dataset-[a-f0-9]{12}$")
+    _JOB_ID_RE = re.compile(r"^job-[a-f0-9]{12}$")
+    _QUANT_BITS_ALLOWED = {4, 8}
+
     @app.post("/api/datasets", response_model=None)
     async def upload_dataset(training_dataset: UploadFile = File(...)) -> dict[str, object] | JSONResponse:
-        raw = (await training_dataset.read()).decode("utf-8")
+        try:
+            raw = (await training_dataset.read()).decode("utf-8")
+        except UnicodeDecodeError:
+            return JSONResponse(status_code=400, content={"issues": [{"row_number": 0, "message": "file must be UTF-8 encoded"}]})
         parsed = parse_jsonl(raw)
         if parsed.issues:
             return JSONResponse(
@@ -82,7 +91,9 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
                 content={"issues": [{"row_number": issue.row_number, "message": issue.message} for issue in parsed.issues]},
             )
         dataset_id = f"dataset-{uuid4().hex[:12]}"
-        artifact = save_dataset_artifacts(AppPaths(app_root), dataset_id=dataset_id, raw=raw, rows=parsed.rows, eval_ratio=0.2, seed=42)
+        artifact = await asyncio.to_thread(
+            save_dataset_artifacts, AppPaths(app_root), dataset_id=dataset_id, raw=raw, rows=parsed.rows, eval_ratio=0.2, seed=42
+        )
         return {
             "dataset_id": artifact.dataset_id,
             "row_count": len(parsed.rows),
@@ -93,6 +104,8 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
 
     @app.post("/api/jobs")
     def create_job(request: CreateJobRequest) -> dict[str, object]:
+        if not _DATASET_ID_RE.match(request.dataset_id):
+            raise HTTPException(status_code=400, detail="invalid dataset_id format")
         job_id = f"job-{uuid4().hex[:12]}"
         dataset_dir = app_root / "training_data" / request.dataset_id
         command = build_train_command(
@@ -115,17 +128,25 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
 
     @app.get("/api/jobs/{job_id}/logs")
     def get_job_logs(job_id: str) -> dict[str, str]:
+        if not _JOB_ID_RE.match(job_id):
+            raise HTTPException(status_code=400, detail="invalid job_id format")
         log_path = app_root / "logs" / f"{job_id}.log"
         return {"job_id": job_id, "logs": log_path.read_text(encoding="utf-8") if log_path.exists() else ""}
 
     @app.post("/api/jobs/{job_id}/merge")
     def merge_job(job_id: str, request: MergeRequest) -> dict[str, object]:
+        if not _JOB_ID_RE.match(job_id):
+            raise HTTPException(status_code=400, detail="invalid job_id format")
         merged_dir = app_root / "merged_models" / job_id
         command = build_merge_command(adapter_dir=Path(request.adapter_dir), output_dir=merged_dir)
         return {"job_id": job_id, "command": command.argv, "artifact_paths": {"merged_model_dir": merged_dir.as_posix()}}
 
     @app.post("/api/jobs/{job_id}/quantize")
     def quantize_job(job_id: str, request: QuantizeRequest) -> dict[str, object]:
+        if not _JOB_ID_RE.match(job_id):
+            raise HTTPException(status_code=400, detail="invalid job_id format")
+        if request.quant_bits not in _QUANT_BITS_ALLOWED:
+            raise HTTPException(status_code=400, detail=f"quant_bits must be one of {sorted(_QUANT_BITS_ALLOWED)}")
         quantized_dir = app_root / "quantized_models" / f"{job_id}-{request.quant_method}-int{request.quant_bits}"
         command = build_quantize_command(
             merged_model_dir=Path(request.merged_model_dir),

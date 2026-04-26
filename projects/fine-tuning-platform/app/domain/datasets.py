@@ -92,8 +92,9 @@ def parse_jsonl(raw: str) -> ParseResult:
             issues.append(ValidationIssue(index, "row must be a JSON object"))
             continue
         row, row_issues = _parse_source_row(parsed, index) if "text" in parsed or "intent" in parsed else _parse_swift_row(parsed, index)
-        rows = rows + ([row] if row else [])
-        issues = issues + row_issues
+        if row:
+            rows.append(row)
+        issues.extend(row_issues)
 
     return ParseResult(rows=[] if issues else rows, issues=issues)
 

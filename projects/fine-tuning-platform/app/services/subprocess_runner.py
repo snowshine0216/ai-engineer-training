@@ -26,9 +26,15 @@ def run_command(command: CommandSpec, log_path: Path, cwd: Path) -> CommandResul
             stderr=subprocess.STDOUT,
             text=True,
         )
-        assert process.stdout is not None
-        for line in process.stdout:
-            log_file.write(line)
-            log_file.flush()
-        exit_code = process.wait()
+        if process.stdout is None:
+            raise RuntimeError("subprocess stdout is None — stdout=PIPE was not honoured")
+        try:
+            for line in process.stdout:
+                log_file.write(line)
+                log_file.flush()
+            exit_code = process.wait()
+        except Exception:
+            process.kill()
+            process.wait()
+            raise
     return CommandResult(exit_code=exit_code, log_path=log_path)
