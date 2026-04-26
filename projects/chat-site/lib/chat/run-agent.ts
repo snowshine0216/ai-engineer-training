@@ -8,12 +8,14 @@ import { classifyError } from "./errors";
 import { toAgentInput, type ConversationMessage } from "./history";
 import { createThinkParser, type Segment } from "./think-parser";
 import type { StreamEvent } from "./stream-event";
+import { extractOrderNumber } from "../customer-service/order-number";
+import { runCustomerServiceAgent } from "../customer-service/runner";
 
 export type RunAgentOptions = {
   spec: AgentSpec;
   messages: ConversationMessage[];
   emit: (event: StreamEvent) => void;
-  env: { DEFAULT_MODEL: string };
+  env: { DEFAULT_MODEL: string; CUSTOMER_SERVICE_DB_PATH: string; SHOW_AGENT_TRACE: boolean };
   signal?: AbortSignal;
 };
 
@@ -62,6 +64,25 @@ const runAttempt = async (
 export const runAgent = async (opts: RunAgentOptions): Promise<void> => {
   const { spec, messages, emit, env, signal } = opts;
   const logger = getLogger();
+
+  if (spec.id === "customer-service") {
+    const latestUser = [...messages].reverse().find((message) => message.role === "user");
+    const orderId = latestUser ? extractOrderNumber(latestUser.content) : null;
+    emit({ eventId: makeEventId(), kind: "accepted", attemptId: 1, agentId: spec.id, ts: Date.now() });
+    if (!orderId) {
+      emit({
+        eventId: makeEventId(),
+        kind: "answer_delta",
+        attemptId: 1,
+        ts: Date.now(),
+        delta: "请提供订单号，我帮你查询发货状态。",
+      });
+      emit({ eventId: makeEventId(), kind: "done", attemptId: 1, ts: Date.now() });
+      return;
+    }
+    await runCustomerServiceAgent({ messages, orderId, emit, env, signal });
+    return;
+  }
 
   const agent = buildAgent(spec, env);
   const input = toAgentInput(messages);

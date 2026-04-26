@@ -44,7 +44,7 @@ const SPEC: AgentSpec = {
   toolIds: [],
 };
 
-const ENV = { DEFAULT_MODEL: "gpt-4o-mini" } as const;
+const ENV = { DEFAULT_MODEL: "gpt-4o-mini", CUSTOMER_SERVICE_DB_PATH: "data/customer-service/customer-service.sqlite", SHOW_AGENT_TRACE: true } as const;
 
 describe("runAgent", () => {
   let events: StreamEvent[];
