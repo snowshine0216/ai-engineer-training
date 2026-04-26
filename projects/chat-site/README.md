@@ -63,6 +63,29 @@ To regenerate the city → adcode index from the bundled XLSX:
 pnpm build-cities
 ```
 
+## Customer service multi-agent demo
+
+The `Customer Service` agent demonstrates a SQLite-backed OpenAI Agents SDK workflow:
+
+- `CustomerServiceManager` owns the user-facing answer.
+- `OrderStatusAgent` checks order/payment/warehouse state.
+- `LogisticsAgent` checks shipping and tracking state.
+- `ReplySynthesisAgent` turns the two specialist results into a concise Chinese support reply.
+
+Local setup:
+
+```bash
+pnpm seed:customer-service-db
+pnpm dev
+```
+
+Environment:
+
+- `CUSTOMER_SERVICE_DB_PATH` - SQLite DB path, default `data/customer-service/customer-service.sqlite`.
+- `SHOW_AGENT_TRACE` - `true` by default. When `false`, trace events stay in server logs/traces and are not streamed to the chat UI.
+
+File-based SQLite requires a persistent writable filesystem. Use a persistent Node host, VM, or Docker volume for production. On Vercel/serverless, use hosted SQLite/libSQL or another external DB behind the repository interface.
+
 ## Adding a new agent
 
 1. Create `lib/prompts/<id>.ts` exporting a `PromptSpec`.
