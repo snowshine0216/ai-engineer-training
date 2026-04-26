@@ -38,3 +38,10 @@
 - [ ] **Retry button ignores Retry-After header** — client should delay the retry by the server-specified seconds.
 - [ ] **Multi-agent handoffs** — server-side agent routing, multi-conversation sidebar, history compaction, in-browser log viewer remain deferred.
 - [ ] **Tool caches are per-process** — Vercel cold starts and multiple warm instances each carry their own cache. Acceptable for single-instance demos; consider Vercel KV / Redis for production.
+
+## Deferred from v0.4.0 (quality / pre-prod)
+
+- [ ] **Prompt injection from tool output** — `formatLives` and `formatResults` interpolate raw upstream fields (AMap response fields, Tavily web snippets) directly into the LLM context. Tavily aggregates adversary-controlled content by design. Consider sanitising `[` `]` `(` `)` and code fences, or wrapping tool output in a `<tool_output>` envelope with a system-prompt instruction to treat it as data, not instructions.
+- [ ] **`safeJson` conflates empty body with malformed JSON** — both return `null`; a future caller treating `null` as "empty body OK" will be surprised. Consider `tryParseJson<T>` returning `{ ok: false; reason: "empty" | "parse-error" }` for differentiated handling.
+- [ ] **`createTtlCache()` default is `maxSize: Infinity`** — a future caller that forgets to pass `maxSize` gets unbounded memory growth if writes outpace TTL expirations. Consider defaulting to 1000 or making `maxSize` required.
+- [ ] **Promote `getTool(id: string)` to two overloads** — `getTool(id: ToolId)` (compile-time safe, no cast) for internal callers + `getTool(id: string)` (explicit unsafe) for HTTP routes, so the narrowing benefit actually reaches agent registry callers.
