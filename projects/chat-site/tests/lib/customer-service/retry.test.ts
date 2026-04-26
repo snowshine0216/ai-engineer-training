@@ -19,7 +19,7 @@ describe("customer service retry", () => {
   it("retries retryable failures and returns the successful value", async () => {
     const sleep = vi.fn(() => Promise.resolve());
     const fn = vi
-      .fn<[], Promise<string>>()
+      .fn<() => Promise<string>>()
       .mockRejectedValueOnce(Object.assign(new Error("busy"), { code: "SQLITE_BUSY" }))
       .mockResolvedValueOnce("ok");
     const onRetry = vi.fn();
@@ -35,5 +35,14 @@ describe("customer service retry", () => {
     const err = Object.assign(new Error("missing"), { code: "order_not_found" });
     await expect(withRetry(() => Promise.reject(err), { sleep, jitterMs: () => 0 })).rejects.toBe(err);
     expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it("rethrows after exhausting all attempts", async () => {
+    const sleep = vi.fn(() => Promise.resolve());
+    const err = Object.assign(new Error("busy"), { code: "SQLITE_BUSY" });
+    await expect(
+      withRetry(() => Promise.reject(err), { maxAttempts: 3, sleep, jitterMs: () => 0 })
+    ).rejects.toBe(err);
+    expect(sleep).toHaveBeenCalledTimes(2);
   });
 });
