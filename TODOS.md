@@ -39,3 +39,39 @@
 **Depends on:** First implementation pass plus refreshed mockups
 
 ## Completed
+
+### fine-tuning-platform: FastAPI MVP with SWIFT LoRA
+
+**What:** Standalone FastAPI platform for ModelScope SWIFT LoRA fine-tuning of `Qwen2.5-7B-Instruct` intent analysis. Domain layer, service layer, REST API, Jinja2 UI, and 56 tests.
+
+**Completed:** v0.1.0.0 (2026-04-26)
+
+## fine-tuning-platform
+
+### Verify ms-swift CLI flags against installed version
+
+**What:** Run `swift sft --help` in the platform's uv env and cross-check the generated command flags against the actual installed `ms-swift` version.
+
+**Why:** The design relies on documented SWIFT CLI behavior. The exact flag names (`--model_type`, `--val_dataset`, `--per_device_train_batch_size`) should be verified against the local install before the first real training run.
+
+**Effort:** S
+**Priority:** P1
+**Depends on:** `ms-swift` installed in local env
+
+### Confirm which quantization method runs on Apple Silicon
+
+**What:** Test `bnb` vs `gptq` vs `awq` on Apple Silicon to determine which is locally runnable. Update `_QUANT_BITS_ALLOWED` and add a method allowlist if needed.
+
+**Why:** The current code accepts any `quant_method` string. Some methods require CUDA and will fail locally. The API should return a clear error for incompatible methods rather than passing them to SWIFT.
+
+**Effort:** S
+**Priority:** P2
+
+### Add upload size limit to dataset endpoint
+
+**What:** Cap `POST /api/datasets` at 50 MB. Return HTTP 413 if exceeded.
+
+**Why:** The current endpoint reads the full upload into memory with no size guard. Adversarial review flagged this as a potential memory DoS vector.
+
+**Effort:** S
+**Priority:** P3
