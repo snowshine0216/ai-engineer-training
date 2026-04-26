@@ -73,4 +73,15 @@ describe("createTtlCache", () => {
     expect(cache.size()).toBe(0);
     expect(cache.get("a")).toBeUndefined();
   });
+
+  it("evicts the oldest entry when set exceeds maxSize", () => {
+    const cache = createTtlCache<string>({ maxSize: 2 });
+    cache.set("a", "1", 1000);
+    cache.set("b", "2", 1000);
+    cache.set("c", "3", 1000); // triggers eviction of "a"
+    expect(cache.size()).toBe(2);
+    expect(cache.get("a")).toBeUndefined();
+    expect(cache.get("b")).toBe("2");
+    expect(cache.get("c")).toBe("3");
+  });
 });

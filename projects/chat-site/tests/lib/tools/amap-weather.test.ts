@@ -111,4 +111,32 @@ describe("amapWeather", () => {
     const out = await _executeForTest({ city: "深圳", forecast: false });
     expect(out).toContain("天气服务暂时不可用");
   });
+
+  it("returns fallback on invalid JSON response body", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      new Response("<<not json>>", { status: 200, headers: { "content-type": "application/json" } })
+    );
+    const out = await _executeForTest({ city: "成都", forecast: false });
+    expect(out).toContain("天气服务暂时不可用");
+  });
+
+  it("returns fallback when status=1 but lives array is empty (base mode)", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(ok({ status: "1", info: "OK", lives: [] }));
+    const out = await _executeForTest({ city: "南京", forecast: false });
+    expect(out).toContain("天气服务暂时不可用");
+  });
+
+  it("returns fallback when status=1 but forecasts is missing (forecast mode)", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(ok({ status: "1", info: "OK" }));
+    const out = await _executeForTest({ city: "天津", forecast: true });
+    expect(out).toContain("天气服务暂时不可用");
+  });
+
+  it("returns fallback when forecasts[0].casts is empty (forecast mode)", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      ok({ status: "1", info: "OK", forecasts: [{ city: "重庆市", casts: [] }] })
+    );
+    const out = await _executeForTest({ city: "重庆", forecast: true });
+    expect(out).toContain("天气服务暂时不可用");
+  });
 });

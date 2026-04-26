@@ -58,4 +58,16 @@ describe("lookupAdcode", () => {
     expect(lookupAdcode("")).toBeUndefined();
     expect(lookupAdcode("   ")).toBeUndefined();
   });
+
+  it("memoizes repeated lookups (same instance on second call)", () => {
+    const a = lookupAdcode("北京");
+    const b = lookupAdcode("北京");
+    expect(a).toEqual(b);
+    expect(a?.adcode).toBe("110000");
+  });
+
+  it("memoizes negative lookups (unknown city → undefined cached without throwing)", () => {
+    expect(lookupAdcode("不存在的城市XYZ")).toBeUndefined();
+    expect(lookupAdcode("不存在的城市XYZ")).toBeUndefined();
+  });
 });

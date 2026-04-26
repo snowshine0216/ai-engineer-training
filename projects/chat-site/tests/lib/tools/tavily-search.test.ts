@@ -95,4 +95,23 @@ describe("tavilySearch", () => {
     const out = await _executeForTest({ query: "network error case" });
     expect(out).toContain("搜索服务暂时不可用");
   });
+
+  it("returns fallback on invalid JSON response body", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      new Response("<<not json>>", { status: 200, headers: { "content-type": "application/json" } })
+    );
+    const out = await _executeForTest({ query: "bad json case" });
+    expect(out).toContain("搜索服务暂时不可用");
+  });
+
+  it("trims long content snippets to <= ~150 chars with ellipsis", async () => {
+    const longContent = "x".repeat(300);
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      ok({ answer: "", results: [{ title: "t", url: "https://example.com/x", content: longContent }] })
+    );
+    const out = await _executeForTest({ query: "long snippet trim case" });
+    expect(out).toContain("…");
+    // Should not contain the full 300-char string
+    expect(out).not.toContain("x".repeat(200));
+  });
 });
