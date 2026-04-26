@@ -68,7 +68,6 @@ describe("POST /api/chat customer-service", () => {
 
   it("delegates to the customer service runner when an order number exists", async () => {
     vi.mocked(runCustomerServiceAgent).mockImplementation(async ({ emit }) => {
-      emit({ eventId: "1", kind: "accepted", attemptId: 1, agentId: "customer-service", ts: 1 });
       emit({ eventId: "2", kind: "done", attemptId: 1, ts: 2 });
     });
 
