@@ -80,7 +80,22 @@ export const runAgent = async (opts: RunAgentOptions): Promise<void> => {
       emit({ eventId: makeEventId(), kind: "done", attemptId: 1, ts: Date.now() });
       return;
     }
-    await runCustomerServiceAgent({ messages, orderId, emit, env, signal });
+    try {
+      await runCustomerServiceAgent({ messages, orderId, emit, env, signal });
+    } catch (err) {
+      logger.error("customer-service agent failed", {
+        orderId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      emit({
+        eventId: makeEventId(),
+        kind: "failed",
+        attemptId: 1,
+        ts: Date.now(),
+        message: "客服系统暂时无法处理您的请求，请稍后重试。",
+        retryable: false,
+      });
+    }
     return;
   }
 

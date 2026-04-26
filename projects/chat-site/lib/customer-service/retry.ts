@@ -18,11 +18,13 @@ export type RetryNotice = {
   reason: string;
 };
 
+const DEFAULT_MAX_JITTER_MS = 100;
+
 const DEFAULT_POLICY: RetryPolicy = {
   maxAttempts: 3,
   baseDelayMs: 200,
   maxDelayMs: 1500,
-  jitterMs: () => Math.floor(Math.random() * 101),
+  jitterMs: () => Math.floor(Math.random() * (DEFAULT_MAX_JITTER_MS + 1)),
 };
 
 const getCode = (err: unknown): string =>
@@ -74,6 +76,6 @@ export const withRetry = async <T>(
     }
   }
 
-  // unreachable: the loop always returns on success or throws on exhaustion/non-retryable
+  // guard: reached only when policy.maxAttempts is 0 or negative
   throw new Error("withRetry: maxAttempts must be >= 1");
 };

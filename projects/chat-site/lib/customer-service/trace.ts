@@ -11,8 +11,8 @@ export const makeAgentTraceEvent = (input: MakeTraceInput): AgentTraceEvent => (
   kind: "agent_trace",
   metadata: input.metadata
     ? {
-        ...(input.metadata.orderId ? { orderId: input.metadata.orderId } : {}),
-        ...(input.metadata.toolName ? { toolName: input.metadata.toolName } : {}),
+        ...(input.metadata.orderId !== undefined ? { orderId: input.metadata.orderId } : {}),
+        ...(input.metadata.toolName !== undefined ? { toolName: input.metadata.toolName } : {}),
         ...(input.metadata.attempt !== undefined ? { attempt: input.metadata.attempt } : {}),
         ...(input.metadata.nextDelayMs !== undefined ? { nextDelayMs: input.metadata.nextDelayMs } : {}),
       }

@@ -73,4 +73,10 @@ describe("customer service retry", () => {
       reason: "Unknown customer service error",
     });
   });
+
+  it("throws guard error when maxAttempts is 0 (invalid policy)", async () => {
+    await expect(
+      withRetry(() => Promise.resolve("x"), { maxAttempts: 0, jitterMs: () => 0 }),
+    ).rejects.toThrow("maxAttempts must be >= 1");
+  });
 });

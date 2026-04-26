@@ -5,8 +5,7 @@ import { createSqliteCustomerServiceRepository } from "./sqlite-repository";
 import { makeAgentTraceEvent, logAgentTraceEvent } from "./trace";
 import { toAgentInput, type ConversationMessage } from "../chat/history";
 import { createThinkParser } from "../chat/think-parser";
-import type { AgentTraceEvent } from "../chat/stream-event";
-import type { StreamEvent } from "../chat/stream-event";
+import type { AgentTraceEvent, StreamEvent } from "../chat/stream-event";
 import { getLogger } from "../logging";
 
 type RunnerEnv = {

@@ -174,4 +174,23 @@ describe("runCustomerServiceAgent", () => {
     const deltas = mockEmit.mock.calls.filter(([e]) => e.kind === "answer_delta");
     expect(deltas[0][0]).toMatchObject({ kind: "answer_delta", delta: "buffered text" });
   });
+
+  it("returns early on abort mid-stream without emitting done", async () => {
+    mockParser.feed.mockImplementation((text: string) => [{ kind: "answer", text }]);
+    mockRun.mockResolvedValue(makeStreamed(["chunk1", "chunk2"]));
+
+    const controller = new AbortController();
+    controller.abort();
+
+    await runCustomerServiceAgent({
+      messages: [],
+      orderId: "1001",
+      emit: mockEmit,
+      env: makeEnv({ SHOW_AGENT_TRACE: false }),
+      signal: controller.signal,
+    });
+
+    const kinds = mockEmit.mock.calls.map(([e]) => e.kind);
+    expect(kinds).not.toContain("done");
+  });
 });
