@@ -78,4 +78,30 @@ describe("parseServerEnv", () => {
     expect(() => parseServerEnv(withoutAmap)).toThrow(/AMAP_API_KEY/);
     expect(() => parseServerEnv(withoutTavily)).toThrow(/TAVILY_API_KEY/);
   });
+
+  it("defaults customer service db path and trace visibility", () => {
+    const env = parseServerEnv({
+      OPENAI_BASE_URL: "https://api.example.com/v1",
+      OPENAI_API_KEY: "sk-test",
+      DEFAULT_MODEL: "gpt-4o-mini",
+      AMAP_API_KEY: "amap",
+      TAVILY_API_KEY: "tavily",
+    });
+
+    expect(env.CUSTOMER_SERVICE_DB_PATH).toBe("data/customer-service/customer-service.sqlite");
+    expect(env.SHOW_AGENT_TRACE).toBe(true);
+  });
+
+  it("parses SHOW_AGENT_TRACE=false", () => {
+    const env = parseServerEnv({
+      OPENAI_BASE_URL: "https://api.example.com/v1",
+      OPENAI_API_KEY: "sk-test",
+      DEFAULT_MODEL: "gpt-4o-mini",
+      AMAP_API_KEY: "amap",
+      TAVILY_API_KEY: "tavily",
+      SHOW_AGENT_TRACE: "false",
+    });
+
+    expect(env.SHOW_AGENT_TRACE).toBe(false);
+  });
 });
