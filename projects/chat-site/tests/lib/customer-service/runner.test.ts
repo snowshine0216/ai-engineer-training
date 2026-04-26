@@ -193,6 +193,18 @@ describe("runCustomerServiceAgent", () => {
     expect(deltas[0][0]).toMatchObject({ kind: "answer_delta", delta: "buffered text" });
   });
 
+  it("emits failed event (not unhandled rejection) when createSqliteCustomerServiceRepository throws", async () => {
+    vi.mocked(createSqliteCustomerServiceRepository).mockImplementation(() => {
+      throw new Error("ENOENT: no such file or directory");
+    });
+
+    await runCustomerServiceAgent({ messages: [], orderId: "1001", emit: mockEmit, env: makeEnv({ SHOW_AGENT_TRACE: false }) });
+
+    const failed = mockEmit.mock.calls.find(([e]) => e.kind === "failed");
+    expect(failed).toBeDefined();
+    expect(failed![0]).toMatchObject({ kind: "failed" });
+  });
+
   it("stops after first chunk when signal is aborted mid-stream, does not emit done", async () => {
     const controller = new AbortController();
     const abortingStream = {
