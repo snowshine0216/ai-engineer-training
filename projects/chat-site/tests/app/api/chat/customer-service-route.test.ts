@@ -79,4 +79,34 @@ describe("POST /api/chat customer-service", () => {
       env: expect.objectContaining({ SHOW_AGENT_TRACE: true }),
     }));
   });
+
+  it("passes SHOW_AGENT_TRACE=false to suppress client trace events in the runner", async () => {
+    const { getServerEnv } = await import("../../../../lib/config/env");
+    vi.mocked(getServerEnv).mockReturnValueOnce({
+      OPENAI_BASE_URL: "https://api.example.com/v1",
+      OPENAI_API_KEY: "sk-test",
+      DEFAULT_MODEL: "gpt-4o-mini",
+      AMAP_API_KEY: "amap",
+      TAVILY_API_KEY: "tavily",
+      CUSTOMER_SERVICE_DB_PATH: "data/customer-service/customer-service.sqlite",
+      SHOW_AGENT_TRACE: false,
+      DEMO_REQUEST_BUDGET: 50,
+      LANGFUSE_PUBLIC_KEY: undefined,
+      LANGFUSE_SECRET_KEY: undefined,
+      LANGFUSE_HOST: undefined,
+      LOG_LEVEL: "info",
+      LOG_DIR: "logs",
+      LOG_FILE_ENABLED: false,
+    });
+
+    vi.mocked(runCustomerServiceAgent).mockImplementation(async ({ emit }) => {
+      emit({ eventId: "2", kind: "done", attemptId: 1, ts: 2 });
+    });
+
+    const resp = await POST(makeRequest("订单 1001 为什么没发货"));
+    await readStream(resp);
+    expect(runCustomerServiceAgent).toHaveBeenCalledWith(expect.objectContaining({
+      env: expect.objectContaining({ SHOW_AGENT_TRACE: false }),
+    }));
+  });
 });

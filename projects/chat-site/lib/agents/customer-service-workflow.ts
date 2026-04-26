@@ -16,41 +16,64 @@ type WorkflowOptions = {
   emitTrace: (event: Omit<AgentTraceEvent, "eventId" | "kind" | "attemptId" | "ts">) => void;
 };
 
-const summarizeOrder = async (repository: CustomerServiceRepository, orderId: string): Promise<string> => {
-  const order = await withRetry(() => repository.findOrderById(orderId));
-  if (!order) return JSON.stringify({ orderId, found: false, summary: "未找到该订单。" });
-  return JSON.stringify({
-    orderId: order.orderId,
-    found: true,
-    status: order.status,
-    paymentStatus: order.paymentStatus,
-    promisedShipBy: order.promisedShipBy,
-    holdReason: order.holdReason,
-    warehouse: order.warehouse,
-    summary: order.holdReason
-      ? `订单状态为 ${order.status}，原因：${order.holdReason}。`
-      : `订单状态为 ${order.status}，仓库：${order.warehouse ?? "未记录"}。`,
-  });
-};
-
-const summarizeLogistics = async (repository: CustomerServiceRepository, orderId: string): Promise<string> => {
-  const logistics = await withRetry(() => repository.findLogisticsByOrderId(orderId));
-  if (!logistics) return JSON.stringify({ orderId, found: false, summary: "暂未查询到物流记录。" });
-  return JSON.stringify({
-    orderId: logistics.orderId,
-    found: true,
-    shipmentStatus: logistics.shipmentStatus,
-    carrier: logistics.carrier,
-    trackingNumber: logistics.trackingNumber,
-    latestEvent: logistics.events[0] ?? null,
-    exceptionReason: logistics.exceptionReason,
-    summary: logistics.exceptionReason
-      ? `物流状态为 ${logistics.shipmentStatus}，异常原因：${logistics.exceptionReason}。`
-      : `物流状态为 ${logistics.shipmentStatus}。`,
-  });
-};
-
 export const buildCustomerServiceWorkflow = ({ model, repository, emitTrace }: WorkflowOptions) => {
+  const withLookupRetry = <T>(
+    agentId: string,
+    label: string,
+    toolName: string,
+    orderId: string,
+    fn: () => Promise<T>,
+  ): Promise<T> =>
+    withRetry(fn, {
+      onRetry: ({ attempt, nextDelayMs }) => {
+        emitTrace({
+          agentId,
+          phase: "retry_scheduled",
+          label,
+          summary: `第 ${attempt} 次查询失败，准备重试`,
+          metadata: { orderId, toolName, attempt, nextDelayMs },
+        });
+      },
+    });
+
+  const summarizeOrder = async (orderId: string): Promise<string> => {
+    const order = await withLookupRetry("order-status-agent", "OrderStatusAgent", "get_order_status", orderId, () =>
+      repository.findOrderById(orderId),
+    );
+    if (!order) return JSON.stringify({ orderId, found: false, summary: "未找到该订单。" });
+    return JSON.stringify({
+      orderId: order.orderId,
+      found: true,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      promisedShipBy: order.promisedShipBy,
+      holdReason: order.holdReason,
+      warehouse: order.warehouse,
+      summary: order.holdReason
+        ? `订单状态为 ${order.status}，原因：${order.holdReason}。`
+        : `订单状态为 ${order.status}，仓库：${order.warehouse ?? "未记录"}。`,
+    });
+  };
+
+  const summarizeLogistics = async (orderId: string): Promise<string> => {
+    const logistics = await withLookupRetry("logistics-agent", "LogisticsAgent", "get_logistics_info", orderId, () =>
+      repository.findLogisticsByOrderId(orderId),
+    );
+    if (!logistics) return JSON.stringify({ orderId, found: false, summary: "暂未查询到物流记录。" });
+    return JSON.stringify({
+      orderId: logistics.orderId,
+      found: true,
+      shipmentStatus: logistics.shipmentStatus,
+      carrier: logistics.carrier,
+      trackingNumber: logistics.trackingNumber,
+      latestEvent: logistics.events[0] ?? null,
+      exceptionReason: logistics.exceptionReason,
+      summary: logistics.exceptionReason
+        ? `物流状态为 ${logistics.shipmentStatus}，异常原因：${logistics.exceptionReason}。`
+        : `物流状态为 ${logistics.shipmentStatus}。`,
+    });
+  };
+
   const getOrderStatus = tool({
     name: "get_order_status",
     description: "Look up order status by order id from the customer service database.",
@@ -63,7 +86,7 @@ export const buildCustomerServiceWorkflow = ({ model, repository, emitTrace }: W
         summary: "查询订单状态",
         metadata: { orderId, toolName: "get_order_status" },
       });
-      return summarizeOrder(repository, orderId);
+      return summarizeOrder(orderId);
     },
   });
 
@@ -79,7 +102,7 @@ export const buildCustomerServiceWorkflow = ({ model, repository, emitTrace }: W
         summary: "查询物流状态",
         metadata: { orderId, toolName: "get_logistics_info" },
       });
-      return summarizeLogistics(repository, orderId);
+      return summarizeLogistics(orderId);
     },
   });
 
