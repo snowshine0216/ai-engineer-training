@@ -1,5 +1,14 @@
 # TODOs
 
+## Shipped in 0.5.0
+
+- [x] Customer service multi-agent workflow: order status + logistics info + reply synthesis via OpenAI Agents SDK
+- [x] SQLite customer service repository with parameterized queries and full seed data
+- [x] Retry policy for transient SQLite errors (SQLITE_BUSY, SQLITE_LOCKED) with exponential backoff and jitter
+- [x] Real-time agent trace timeline in the chat UI (`SHOW_AGENT_TRACE` env var)
+- [x] `CUSTOMER_SERVICE_DB_PATH` and `SHOW_AGENT_TRACE` added to environment contract
+- [x] `run-agent` error handling: customer-service runner now emits `failed` event on throw
+
 ## Shipped in 0.4.0
 - [x] `amap-weather` tool with 10-min TTL cache and 10 s timeout
 - [x] `tavily-search` tool with 30-min TTL cache (normalized query key) and 15 s timeout
