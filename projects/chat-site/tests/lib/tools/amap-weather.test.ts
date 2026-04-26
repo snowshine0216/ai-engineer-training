@@ -132,6 +132,12 @@ describe("amapWeather", () => {
     expect(out).toContain("天气服务暂时不可用");
   });
 
+  it("returns fallback when forecasts is an empty array (forecast mode)", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(ok({ status: "1", info: "OK", forecasts: [] }));
+    const out = await _executeForTest({ city: "苏州", forecast: true });
+    expect(out).toContain("天气服务暂时不可用");
+  });
+
   it("returns fallback when forecasts[0].casts is empty (forecast mode)", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce(
       ok({ status: "1", info: "OK", forecasts: [{ city: "重庆市", casts: [] }] })

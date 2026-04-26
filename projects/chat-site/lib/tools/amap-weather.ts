@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import type { ToolSpec } from "./types";
 import { lookupAdcode } from "./city-lookup";
+import { fetchWithTimeout, safeJson } from "./_http";
 import { createTtlCache } from "../cache/ttl-cache";
 import { getLogger } from "../logging";
 
@@ -43,17 +44,14 @@ const formatCast = (c: Cast): string =>
 const formatForecast = (city: string, casts: Cast[]): string =>
   [`📍 ${city} — 多日预报`, ...casts.map(formatCast)].join("\n");
 
-const fetchWithTimeout = async (url: string): Promise<Response> => {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    return await fetch(url, { signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
-};
-
 type ExecuteArgs = { city: string; forecast?: boolean };
+
+type AmapResponse = {
+  status?: string;
+  info?: string;
+  lives?: Lives[];
+  forecasts?: Array<{ city: string; casts: Cast[] }>;
+};
 
 const executeImpl = async ({ city, forecast = false }: ExecuteArgs): Promise<string> => {
   const logger = getLogger();
@@ -79,7 +77,7 @@ const executeImpl = async ({ city, forecast = false }: ExecuteArgs): Promise<str
 
   let res: Response;
   try {
-    res = await fetchWithTimeout(url.toString());
+    res = await fetchWithTimeout(url.toString(), undefined, TIMEOUT_MS);
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     logger.warn("amap-weather failed", { city, adcode: match.adcode, forecast, reason });
@@ -91,10 +89,8 @@ const executeImpl = async ({ city, forecast = false }: ExecuteArgs): Promise<str
     return FALLBACK;
   }
 
-  let data: { status?: string; info?: string; lives?: Lives[]; forecasts?: Array<{ city: string; casts: Cast[] }> };
-  try {
-    data = (await res.json()) as typeof data;
-  } catch {
+  const data = await safeJson<AmapResponse>(res);
+  if (!data) {
     logger.warn("amap-weather failed", { city, adcode: match.adcode, forecast, reason: "invalid JSON" });
     return FALLBACK;
   }

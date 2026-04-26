@@ -3,6 +3,7 @@ import { tool } from "@openai/agents";
 import { z } from "zod";
 
 import type { ToolSpec } from "./types";
+import { fetchWithTimeout, safeJson } from "./_http";
 import { createTtlCache } from "../cache/ttl-cache";
 import { getLogger } from "../logging";
 
@@ -34,16 +35,6 @@ const formatResults = (data: TavilyResponse): string => {
   return parts.join("\n\n");
 };
 
-const fetchWithTimeout = async (url: string, init: RequestInit): Promise<Response> => {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
-};
-
 const executeImpl = async ({ query }: { query: string }): Promise<string> => {
   const logger = getLogger();
   const key = `search:${normalizeQuery(query)}`;
@@ -63,11 +54,11 @@ const executeImpl = async ({ query }: { query: string }): Promise<string> => {
 
   let res: Response;
   try {
-    res = await fetchWithTimeout(ENDPOINT, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body,
-    });
+    res = await fetchWithTimeout(
+      ENDPOINT,
+      { method: "POST", headers: { "content-type": "application/json" }, body },
+      TIMEOUT_MS,
+    );
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     logger.warn("tavily-search failed", { query, reason });
@@ -79,10 +70,8 @@ const executeImpl = async ({ query }: { query: string }): Promise<string> => {
     return FALLBACK;
   }
 
-  let data: TavilyResponse;
-  try {
-    data = (await res.json()) as TavilyResponse;
-  } catch {
+  const data = await safeJson<TavilyResponse>(res);
+  if (!data) {
     logger.warn("tavily-search failed", { query, reason: "invalid JSON" });
     return FALLBACK;
   }

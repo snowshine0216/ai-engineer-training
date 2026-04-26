@@ -13,6 +13,17 @@ export const createTtlCache = <V>(options?: { maxSize?: number }): TtlCache<V> =
   const maxSize = options?.maxSize ?? Infinity;
   const store = new Map<string, Entry<V>>();
 
+  // Sole write path. Anything that mutates `store` (set, future bulk loaders) routes
+  // through here so the maxSize invariant lives with the data structure, not the caller.
+  const writeEntry = (key: string, entry: Entry<V>): void => {
+    store.set(key, entry);
+    if (store.size > maxSize) {
+      // Evict the oldest entry (Map preserves insertion order).
+      const oldest = store.keys().next().value;
+      if (oldest !== undefined) store.delete(oldest);
+    }
+  };
+
   const get = (key: string): V | undefined => {
     const entry = store.get(key);
     if (!entry) return undefined;
@@ -24,12 +35,7 @@ export const createTtlCache = <V>(options?: { maxSize?: number }): TtlCache<V> =
   };
 
   const set = (key: string, value: V, ttlMs: number): void => {
-    store.set(key, { value, expiresAt: Date.now() + ttlMs });
-    if (store.size > maxSize) {
-      // Evict the oldest entry (Map preserves insertion order)
-      const oldest = store.keys().next().value;
-      if (oldest !== undefined) store.delete(oldest);
-    }
+    writeEntry(key, { value, expiresAt: Date.now() + ttlMs });
   };
 
   const del = (key: string): void => {

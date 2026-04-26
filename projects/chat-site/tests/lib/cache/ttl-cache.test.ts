@@ -84,4 +84,23 @@ describe("createTtlCache", () => {
     expect(cache.get("b")).toBe("2");
     expect(cache.get("c")).toBe("3");
   });
+
+  it("overwriting an existing key at maxSize does not evict another entry", () => {
+    const cache = createTtlCache<string>({ maxSize: 2 });
+    cache.set("a", "1", 1000);
+    cache.set("b", "2", 1000);
+    cache.set("a", "1b", 1000); // overwrite, no new slot needed
+    expect(cache.size()).toBe(2);
+    expect(cache.get("a")).toBe("1b");
+    expect(cache.get("b")).toBe("2");
+  });
+
+  it("maxSize=1 keeps only the most recently set entry", () => {
+    const cache = createTtlCache<string>({ maxSize: 1 });
+    cache.set("a", "1", 1000);
+    cache.set("b", "2", 1000);
+    expect(cache.size()).toBe(1);
+    expect(cache.get("a")).toBeUndefined();
+    expect(cache.get("b")).toBe("2");
+  });
 });

@@ -104,14 +104,13 @@ describe("tavilySearch", () => {
     expect(out).toContain("搜索服务暂时不可用");
   });
 
-  it("trims long content snippets to <= ~150 chars with ellipsis", async () => {
+  it("trims long content snippets to exactly 150 chars + ellipsis", async () => {
     const longContent = "x".repeat(300);
     vi.spyOn(global, "fetch").mockResolvedValueOnce(
       ok({ answer: "", results: [{ title: "t", url: "https://example.com/x", content: longContent }] })
     );
     const out = await _executeForTest({ query: "long snippet trim case" });
-    expect(out).toContain("…");
-    // Should not contain the full 300-char string
-    expect(out).not.toContain("x".repeat(200));
+    expect(out).toContain("x".repeat(150) + "…");
+    expect(out).not.toContain("x".repeat(151));
   });
 });

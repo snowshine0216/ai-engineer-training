@@ -1,12 +1,20 @@
 // tests/lib/tools/city-lookup.test.ts
-import { describe, it, expect } from "vitest";
-import { lookupAdcode } from "../../../lib/tools/city-lookup";
+import { describe, it, expect, beforeEach } from "vitest";
+import {
+  lookupAdcode,
+  _clearMemoForTest,
+  _memoSizeForTest,
+} from "../../../lib/tools/city-lookup";
 
 // Dataset note: amap-cities.json stores names with their administrative suffix,
 // e.g. "北京市" (adcode 110000), "上海市" (adcode 310000).
 // There are no bare "北京" or "上海" entries.
 
 describe("lookupAdcode", () => {
+  beforeEach(() => {
+    _clearMemoForTest();
+  });
+
   it("returns adcode for an exact city name (北京市)", () => {
     const m = lookupAdcode("北京市");
     expect(m?.adcode).toBe("110000");
@@ -59,15 +67,21 @@ describe("lookupAdcode", () => {
     expect(lookupAdcode("   ")).toBeUndefined();
   });
 
-  it("memoizes repeated lookups (same instance on second call)", () => {
+  it("memoizes repeated lookups (cache size grows once for the same key)", () => {
+    expect(_memoSizeForTest()).toBe(0);
     const a = lookupAdcode("北京");
+    expect(_memoSizeForTest()).toBe(1);
     const b = lookupAdcode("北京");
+    expect(_memoSizeForTest()).toBe(1); // still 1 — second call hit the memo
     expect(a).toEqual(b);
     expect(a?.adcode).toBe("110000");
   });
 
-  it("memoizes negative lookups (unknown city → undefined cached without throwing)", () => {
+  it("memoizes negative lookups (unknown query is cached as undefined)", () => {
+    expect(_memoSizeForTest()).toBe(0);
     expect(lookupAdcode("不存在的城市XYZ")).toBeUndefined();
+    expect(_memoSizeForTest()).toBe(1); // negative entry stored
     expect(lookupAdcode("不存在的城市XYZ")).toBeUndefined();
+    expect(_memoSizeForTest()).toBe(1); // still 1 — second call hit the memo
   });
 });

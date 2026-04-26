@@ -5,13 +5,13 @@
 // Dataset (amap-cities.json) stores administrative names with their suffix,
 // e.g. "北京市", "上海市", "海淀区". There are no bare "北京" entries.
 //
-// Match priority:
-//   1. findExact(q)                    — "北京市" → exact hit
-//   2. stripSuffix(q) → findExact      — "北京市" stripped → "北京" → no hit (handled by step 1)
-//   3. stripSuffix(q) → findExactWithSuffix — "北京市" stripped → already found in step 1
-//   4. findExactWithSuffix(q)          — "北京" → probes "北京市/县/区"
-//   5. findSubstring(q)                — "北京海淀区" → row.name ⊂ q finds "海淀区"
-//   6. undefined
+// Match priority (each step shows the input shape it actually handles):
+//   1. findExact(q)                          — "北京市" matches dataset entry directly.
+//   2. stripSuffix(q) → findExact            — "北京市区" → "北京市" matches by stripping a redundant suffix.
+//   3. stripSuffix(q) → findExactWithSuffix  — "北京X" (unknown suffix) → strip → probe "北京市/县/区".
+//   4. findExactWithSuffix(q)                — "北京" → probe "北京市/县/区".
+//   5. findSubstring(q)                      — "北京海淀区" → contains dataset row "海淀区".
+//   6. undefined.
 
 import cities from "./amap-cities.json";
 import { createTtlCache } from "../cache/ttl-cache";
@@ -48,11 +48,9 @@ const findExactWithSuffix = (q: string): CityRow | undefined => {
 /** Match when a dataset name is fully contained in q (longer input), or q in name.
  *  The reverse direction (q.includes(row.name)) is guarded to row.name.length >= 3
  *  to avoid false positives from 2-char dataset entries like "城区" or "中国".
- *  Limit to first 200 entries to prevent O(n) performance issues. */
+ *  Full ~3.2k-row scan is sub-ms; cost is bounded by lookupMemo (1k entry max). */
 const findSubstring = (q: string): CityRow | undefined => {
-  let count = 0;
   for (const row of DATA) {
-    if (count++ > 200) break; // Performance limit
     if (row.name.includes(q) || (row.name.length >= 3 && q.includes(row.name))) {
       return row;
     }
@@ -62,8 +60,13 @@ const findSubstring = (q: string): CityRow | undefined => {
 
 const toMatch = (row: CityRow): CityMatch => ({ adcode: row.adcode, matched: row.name });
 
-// Bounded TTL cache to prevent memory leaks (1 hour TTL, 1000 entry limit)
+// Bounded TTL cache to prevent memory leaks.
+const LOOKUP_TTL_MS = 60 * 60 * 1000;
 const lookupMemo = createTtlCache<CityMatch | undefined>({ maxSize: 1000 });
+
+// Test helpers — exported so tests can verify memoization without timing tricks.
+export const _clearMemoForTest = (): void => lookupMemo.clear();
+export const _memoSizeForTest = (): number => lookupMemo.size();
 
 export const lookupAdcode = (input: string): CityMatch | undefined => {
   const q = input.trim();
@@ -75,7 +78,7 @@ export const lookupAdcode = (input: string): CityMatch | undefined => {
   const exact = findExact(q);
   if (exact) {
     const result = toMatch(exact);
-    lookupMemo.set(q, result, 60 * 60 * 1000); // 1 hour TTL
+    lookupMemo.set(q, result, LOOKUP_TTL_MS);
     return result;
   }
 
@@ -84,14 +87,14 @@ export const lookupAdcode = (input: string): CityMatch | undefined => {
     const exactStripped = findExact(stripped);
     if (exactStripped) {
       const result = toMatch(exactStripped);
-      lookupMemo.set(q, result, 60 * 60 * 1000);
+      lookupMemo.set(q, result, LOOKUP_TTL_MS);
       return result;
     }
 
     const withSuffixStripped = findExactWithSuffix(stripped);
     if (withSuffixStripped) {
       const result = toMatch(withSuffixStripped);
-      lookupMemo.set(q, result, 60 * 60 * 1000);
+      lookupMemo.set(q, result, LOOKUP_TTL_MS);
       return result;
     }
   }
@@ -99,12 +102,12 @@ export const lookupAdcode = (input: string): CityMatch | undefined => {
   const withSuffix = findExactWithSuffix(q);
   if (withSuffix) {
     const result = toMatch(withSuffix);
-    lookupMemo.set(q, result, 60 * 60 * 1000);
+    lookupMemo.set(q, result, LOOKUP_TTL_MS);
     return result;
   }
 
   const sub = findSubstring(q);
   const result = sub ? toMatch(sub) : undefined;
-  lookupMemo.set(q, result, 60 * 60 * 1000);
+  lookupMemo.set(q, result, LOOKUP_TTL_MS);
   return result;
 };
