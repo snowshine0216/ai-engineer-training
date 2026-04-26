@@ -22,3 +22,9 @@ def test_predict_page_renders(tmp_path):
 
     assert response.status_code == 200
     assert "model_artifact_id" in response.text
+
+
+def test_job_new_page_renders(tmp_path):
+    response = TestClient(create_app(root=tmp_path)).get("/jobs/new")
+
+    assert response.status_code == 200

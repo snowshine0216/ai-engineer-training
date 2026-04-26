@@ -37,3 +37,48 @@ def test_compute_intent_metrics_tracks_accuracy_f1_parse_failures_and_bad_cases(
         {"index": 1, "label": "ticket_refund", "prediction": "weather_query", "raw_response": '{"intent":"weather_query","confidence":0.6}'},
         {"index": 2, "label": "weather_query", "prediction": None, "raw_response": "not-json"},
     ]
+
+
+# --- Gap tests: metrics.py ---
+
+def test_parse_intent_response_handles_non_dict_json():
+    result = parse_intent_response("[1, 2, 3]")
+
+    assert result.error is not None
+    assert result.intent is None
+
+
+def test_parse_intent_response_handles_non_string_intent():
+    import json
+    raw = json.dumps({"intent": 42, "confidence": 0.9})
+
+    result = parse_intent_response(raw)
+
+    assert result.error is not None
+    assert result.intent is None
+
+
+def test_parse_intent_response_handles_empty_intent_string():
+    import json
+    raw = json.dumps({"intent": "  ", "confidence": 0.9})
+
+    result = parse_intent_response(raw)
+
+    assert result.error is not None
+
+
+def test_parse_intent_response_handles_non_numeric_confidence():
+    import json
+    raw = json.dumps({"intent": "weather_query", "confidence": "high"})
+
+    result = parse_intent_response(raw)
+
+    assert result.intent == "weather_query"
+    assert result.confidence is None
+
+
+def test_compute_intent_metrics_raises_for_mismatched_lengths():
+    import pytest
+
+    with pytest.raises(ValueError, match="same length"):
+        compute_intent_metrics(labels=["a", "b"], responses=["r1"])
