@@ -25,4 +25,19 @@ describe("extractOrderNumber", () => {
   it("trims punctuation from the match", () => {
     expect(extractOrderNumber("订单号 1001。")).toBe("1001");
   });
+
+  it("extracts a 32-character order number (max allowed by regex)", () => {
+    const id32 = "A" + "x".repeat(31); // 1 anchor + 31 body = 32 chars
+    expect(extractOrderNumber(`订单 ${id32}`)).toBe(id32);
+  });
+
+  it("extracts at most 32 chars from a 33-char candidate", () => {
+    const id33 = "A" + "x".repeat(32); // 33 chars — regex body allows max 31
+    const result = extractOrderNumber(`订单 ${id33}`);
+    expect(result).toBe("A" + "x".repeat(31)); // only 32 chars captured
+  });
+
+  it("returns null for a 2-character candidate (below minimum 3 chars)", () => {
+    expect(extractOrderNumber("订单 Ax")).toBeNull();
+  });
 });

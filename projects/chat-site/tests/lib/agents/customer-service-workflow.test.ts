@@ -155,4 +155,30 @@ describe("customer service workflow tool execution", () => {
 
     expect(mockEmitTrace).toHaveBeenCalledWith(expect.objectContaining({ phase: "retry_scheduled" }));
   });
+
+  it("emits tool_failed trace and re-throws when getOrderStatus fails", async () => {
+    const err = Object.assign(new Error("disk full"), { code: "DB_ERROR" });
+    mockRepo.findOrderById.mockRejectedValue(err);
+
+    await expect(getOrderStatusExecute({ orderId: "1001" })).rejects.toThrow("disk full");
+
+    expect(mockEmitTrace).toHaveBeenCalledWith(expect.objectContaining({
+      phase: "tool_failed",
+      agentId: "order-status-agent",
+      metadata: expect.objectContaining({ toolName: "get_order_status" }),
+    }));
+  });
+
+  it("emits tool_failed trace and re-throws when getLogisticsInfo fails", async () => {
+    const err = Object.assign(new Error("disk full"), { code: "DB_ERROR" });
+    mockRepo.findLogisticsByOrderId.mockRejectedValue(err);
+
+    await expect(getLogisticsInfoExecute({ orderId: "1001" })).rejects.toThrow("disk full");
+
+    expect(mockEmitTrace).toHaveBeenCalledWith(expect.objectContaining({
+      phase: "tool_failed",
+      agentId: "logistics-agent",
+      metadata: expect.objectContaining({ toolName: "get_logistics_info" }),
+    }));
+  });
 });

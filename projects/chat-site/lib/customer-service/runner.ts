@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { getRunner } from "../ai/openai-provider";
 import { buildCustomerServiceWorkflow } from "../agents/customer-service-workflow";
 import { createSqliteCustomerServiceRepository } from "./sqlite-repository";
+import { classifyCustomerServiceError } from "./retry";
 import { makeAgentTraceEvent, logAgentTraceEvent } from "./trace";
 import { toAgentInput, type ConversationMessage } from "../chat/history";
 import { createThinkParser } from "../chat/think-parser";
@@ -20,6 +21,7 @@ export type RunCustomerServiceAgentOptions = {
   emit: (event: StreamEvent) => void;
   env: RunnerEnv;
   signal?: AbortSignal;
+  attemptId?: number;
 };
 
 const makeEventId = () => randomUUID();
@@ -30,6 +32,7 @@ export const runCustomerServiceAgent = async ({
   emit,
   env,
   signal,
+  attemptId = 1,
 }: RunCustomerServiceAgentOptions): Promise<void> => {
   const logger = getLogger();
   const repository = createSqliteCustomerServiceRepository(env.CUSTOMER_SERVICE_DB_PATH);
@@ -39,7 +42,7 @@ export const runCustomerServiceAgent = async ({
     const event = makeAgentTraceEvent({
       ...input,
       eventId: makeEventId(),
-      attemptId: 1,
+      attemptId,
       ts: Date.now(),
     });
     logAgentTraceEvent(logger, event);
@@ -80,7 +83,7 @@ export const runCustomerServiceAgent = async ({
         emit({
           eventId: makeEventId(),
           kind: seg.kind === "thinking" ? "thinking_delta" : "answer_delta",
-          attemptId: 1,
+          attemptId,
           ts: Date.now(),
           delta: seg.text,
         });
@@ -92,7 +95,7 @@ export const runCustomerServiceAgent = async ({
       emit({
         eventId: makeEventId(),
         kind: seg.kind === "thinking" ? "thinking_delta" : "answer_delta",
-        attemptId: 1,
+        attemptId,
         ts: Date.now(),
         delta: seg.text,
       });
@@ -106,7 +109,21 @@ export const runCustomerServiceAgent = async ({
       summary: `完成订单 ${orderId} 的客服回复`,
       metadata: { orderId },
     });
-    emit({ eventId: makeEventId(), kind: "done", attemptId: 1, ts: Date.now() });
+    emit({ eventId: makeEventId(), kind: "done", attemptId, ts: Date.now() });
+  } catch (err) {
+    logger.error("customer-service agent failed", {
+      orderId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    const { retryable, reason } = classifyCustomerServiceError(err);
+    emit({
+      eventId: makeEventId(),
+      kind: "failed",
+      attemptId,
+      ts: Date.now(),
+      message: reason,
+      retryable,
+    });
   } finally {
     repository.close();
   }

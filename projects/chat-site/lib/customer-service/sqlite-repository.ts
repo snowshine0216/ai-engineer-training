@@ -15,12 +15,20 @@ export const createSqliteCustomerServiceRepository = (
   const db = new DatabaseSync(dbPath, { readOnly: true });
 
   const findOrderById = async (orderId: string): Promise<OrderRecord | null> => {
-    const row = db.prepare("SELECT * FROM orders WHERE order_id = ?").get(orderId);
+    const row = db
+      .prepare(
+        "SELECT order_id, customer_name, status, payment_status, paid_at, promised_ship_by, hold_reason, warehouse, sku_summary, updated_at FROM orders WHERE order_id = ?",
+      )
+      .get(orderId);
     return row ? mapOrderRow(row as Parameters<typeof mapOrderRow>[0]) : null;
   };
 
   const findLogisticsByOrderId = async (orderId: string): Promise<LogisticsRecord | null> => {
-    const shipment = db.prepare("SELECT * FROM shipments WHERE order_id = ?").get(orderId);
+    const shipment = db
+      .prepare(
+        "SELECT order_id, carrier, tracking_number, status, shipped_at, estimated_delivery_at, latest_location, exception_reason, updated_at FROM shipments WHERE order_id = ?",
+      )
+      .get(orderId);
     if (!shipment) return null;
 
     const eventRows = db

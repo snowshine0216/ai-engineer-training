@@ -1,3 +1,5 @@
+// The leading # strip is belt-and-suspenders: all capture groups start with [A-Za-z0-9] so
+// no captured value can begin with # or ：:. The trailing punctuation strip is load-bearing.
 const normalizeMatch = (value: string): string =>
   value.trim().replace(/^[#：:]+/, "").replace(/[。.,，;；!?！？]+$/u, "");
 

@@ -155,14 +155,32 @@ describe("runCustomerServiceAgent", () => {
     expect(deltas[0][0]).toMatchObject({ delta: "flushed" });
   });
 
-  it("calls repository.close in the finally block even if runner.run throws", async () => {
+  it("calls repository.close in the finally block even when runner.run throws", async () => {
     mockRun.mockRejectedValue(new Error("SDK error"));
 
-    await expect(
-      runCustomerServiceAgent({ messages: [], orderId: "1001", emit: mockEmit, env: makeEnv() }),
-    ).rejects.toThrow("SDK error");
+    await runCustomerServiceAgent({ messages: [], orderId: "1001", emit: mockEmit, env: makeEnv() });
 
     expect(mockClose).toHaveBeenCalledOnce();
+  });
+
+  it("emits failed event (not throws) when runner.run rejects with generic error", async () => {
+    mockRun.mockRejectedValue(new Error("SDK error"));
+
+    await runCustomerServiceAgent({ messages: [], orderId: "1001", emit: mockEmit, env: makeEnv({ SHOW_AGENT_TRACE: false }) });
+
+    const failed = mockEmit.mock.calls.find(([e]) => e.kind === "failed");
+    expect(failed).toBeDefined();
+    expect(failed![0]).toMatchObject({ kind: "failed", retryable: false });
+  });
+
+  it("emits failed event with retryable:true for SQLITE_BUSY error", async () => {
+    const err = Object.assign(new Error("busy"), { code: "SQLITE_BUSY" });
+    mockRun.mockRejectedValue(err);
+
+    await runCustomerServiceAgent({ messages: [], orderId: "1001", emit: mockEmit, env: makeEnv({ SHOW_AGENT_TRACE: false }) });
+
+    const failed = mockEmit.mock.calls.find(([e]) => e.kind === "failed");
+    expect(failed![0]).toMatchObject({ kind: "failed", retryable: true });
   });
 
   it("handles Buffer chunks from the text stream", async () => {
@@ -175,12 +193,17 @@ describe("runCustomerServiceAgent", () => {
     expect(deltas[0][0]).toMatchObject({ kind: "answer_delta", delta: "buffered text" });
   });
 
-  it("returns early on abort mid-stream without emitting done", async () => {
-    mockParser.feed.mockImplementation((text: string) => [{ kind: "answer", text }]);
-    mockRun.mockResolvedValue(makeStreamed(["chunk1", "chunk2"]));
-
+  it("stops after first chunk when signal is aborted mid-stream, does not emit done", async () => {
     const controller = new AbortController();
-    controller.abort();
+    const abortingStream = {
+      [Symbol.asyncIterator]: async function* () {
+        yield "chunk1";
+        controller.abort(); // abort after chunk1, before chunk2
+        yield "chunk2";     // should not be processed
+      },
+    };
+    mockParser.feed.mockImplementation((text: string) => [{ kind: "answer", text }]);
+    mockRun.mockResolvedValue({ toTextStream: vi.fn(() => abortingStream), completed: Promise.resolve() });
 
     await runCustomerServiceAgent({
       messages: [],
@@ -190,7 +213,9 @@ describe("runCustomerServiceAgent", () => {
       signal: controller.signal,
     });
 
-    const kinds = mockEmit.mock.calls.map(([e]) => e.kind);
-    expect(kinds).not.toContain("done");
+    const deltas = mockEmit.mock.calls.filter(([e]) => e.kind === "answer_delta");
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0][0]).toMatchObject({ delta: "chunk1" });
+    expect(mockEmit.mock.calls.map(([e]) => e.kind)).not.toContain("done");
   });
 });

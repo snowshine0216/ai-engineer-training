@@ -7,12 +7,9 @@ type Props = {
 const phaseLabel = (phase: AgentTraceEvent["phase"]): string => {
   const labels: Record<AgentTraceEvent["phase"], string> = {
     manager_started: "Manager started",
-    specialist_started: "Specialist started",
     tool_called: "Tool called",
     retry_scheduled: "Retry scheduled",
-    tool_succeeded: "Tool succeeded",
     tool_failed: "Tool failed",
-    specialist_completed: "Specialist completed",
     manager_completed: "Manager completed",
   };
   return labels[phase];

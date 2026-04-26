@@ -86,7 +86,18 @@ export const buildCustomerServiceWorkflow = ({ model, repository, emitTrace }: W
         summary: "查询订单状态",
         metadata: { orderId, toolName: "get_order_status" },
       });
-      return summarizeOrder(orderId);
+      try {
+        return await summarizeOrder(orderId);
+      } catch (err) {
+        emitTrace({
+          agentId: "order-status-agent",
+          phase: "tool_failed",
+          label: "OrderStatusAgent",
+          summary: `查询失败：${err instanceof Error ? err.message : String(err)}`,
+          metadata: { orderId, toolName: "get_order_status" },
+        });
+        throw err;
+      }
     },
   });
 
@@ -102,7 +113,18 @@ export const buildCustomerServiceWorkflow = ({ model, repository, emitTrace }: W
         summary: "查询物流状态",
         metadata: { orderId, toolName: "get_logistics_info" },
       });
-      return summarizeLogistics(orderId);
+      try {
+        return await summarizeLogistics(orderId);
+      } catch (err) {
+        emitTrace({
+          agentId: "logistics-agent",
+          phase: "tool_failed",
+          label: "LogisticsAgent",
+          summary: `查询失败：${err instanceof Error ? err.message : String(err)}`,
+          metadata: { orderId, toolName: "get_logistics_info" },
+        });
+        throw err;
+      }
     },
   });
 

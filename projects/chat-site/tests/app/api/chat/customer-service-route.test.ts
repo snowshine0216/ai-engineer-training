@@ -80,6 +80,18 @@ describe("POST /api/chat customer-service", () => {
     }));
   });
 
+  it("streams the failed event when runner emits failed", async () => {
+    vi.mocked(runCustomerServiceAgent).mockImplementation(async ({ emit }) => {
+      emit({ eventId: "e1", kind: "failed", attemptId: 1, ts: 1, message: "DB error", retryable: false });
+    });
+
+    const resp = await POST(makeRequest("我的订单 1001 为什么还没发货？"));
+    expect(resp.status).toBe(200);
+    const events = await readStream(resp);
+    expect(events.map((e) => e.kind)).toContain("failed");
+    expect(events.find((e) => e.kind === "failed")).toMatchObject({ message: "DB error", retryable: false });
+  });
+
   it("passes SHOW_AGENT_TRACE=false to suppress client trace events in the runner", async () => {
     const { getServerEnv } = await import("../../../../lib/config/env");
     vi.mocked(getServerEnv).mockReturnValueOnce({

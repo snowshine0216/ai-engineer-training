@@ -67,12 +67,9 @@ export type AgentTraceEvent = {
   agentId: string;
   phase:
     | "manager_started"
-    | "specialist_started"
     | "tool_called"
     | "retry_scheduled"
-    | "tool_succeeded"
     | "tool_failed"
-    | "specialist_completed"
     | "manager_completed";
   label: string;
   summary: string;
