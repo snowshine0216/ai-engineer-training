@@ -289,3 +289,19 @@ code, kbd, pre, .mono { font-family: var(--font-mono); }
   .predict-expanded { grid-template-columns: 1fr; }
   .predict-expanded__history { border-left: 0; padding-left: 0; border-top: 1px solid var(--border-soft); padding-top: var(--space-3); }
 }
+.batch-controls { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-3); }
+.batch-actions { display: flex; gap: var(--space-2); align-items: center; }
+.batch-dataset-select { flex: 1; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); color: var(--text); }
+.batch-matrix { width: 100%; border-collapse: collapse; font-size: 12px; }
+.batch-matrix th, .batch-matrix td {
+  text-align: left;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  vertical-align: top;
+}
+.batch-matrix th { background: var(--bg); font-weight: 500; color: var(--text-muted); }
+.batch-matrix__row--mixed td { background: #fffbeb; }
+.batch-matrix__match { color: var(--green-fg); }
+.batch-matrix__miss { color: var(--red-fg); }
+.batch-matrix__lat { display: block; font-size: 10px; color: var(--text-muted); }
+.batch-matrix__foot { color: var(--text-muted); font-weight: 500; }

@@ -186,7 +186,67 @@
           </ul>
         </aside>
         <div class="predict-expanded__main" x-show="tab === 'batch'">
-          <p class="topbar__status">Batch view — populated in Task 14.</p>
+          <div class="batch-controls">
+            <textarea class="field-input" data-batch-prompts x-model="batchPromptsRaw" rows="4" placeholder="One prompt per line — or load from a dataset"></textarea>
+            <div class="batch-actions">
+              <select x-model="batchDatasetId" class="batch-dataset-select">
+                <option value="">Or load eval set…</option>
+                <template x-for="dataset in datasets" :key="dataset.dataset_id">
+                  <option :value="dataset.dataset_id" x-text="dataset.dataset_id + ' — ' + dataset.row_count + ' rows'"></option>
+                </template>
+              </select>
+              <button class="btn btn--ghost btn--small" data-batch-load-eval @click="loadEvalSet()">Load</button>
+            </div>
+            <div class="chip-picker">
+              <template x-for="chip in selectedChips()" :key="chip.id">
+                <span class="chip" :class="'chip--' + chip.kind" @click="toggleModel(chip.id)">
+                  <span x-text="chip.label"></span>
+                  <span aria-hidden="true">×</span>
+                </span>
+              </template>
+              <select class="chip-add" @change="toggleModel($event.target.value); $event.target.value=''">
+                <option value="" disabled selected>+ Add model</option>
+                <template x-for="option in availableOptions()" :key="option.id">
+                  <option :value="option.id" x-text="option.label"></option>
+                </template>
+              </select>
+            </div>
+            <button class="btn" :disabled="batchBusy || !canRunBatch()" @click="runBatch()" x-text="batchBusy ? 'Running ' + batchProgress + '/' + batchTotal : '▶ Run batch'"></button>
+            <button class="btn btn--ghost btn--small" :disabled="!batchRows.length" @click="exportJson()">Export JSON</button>
+          </div>
+          <table class="batch-matrix" data-batch-matrix x-show="batchRows.length">
+            <thead>
+              <tr>
+                <th>Prompt</th>
+                <th x-show="anyExpected()">Expected</th>
+                <template x-for="chip in selectedChips()" :key="chip.id">
+                  <th x-text="chip.label"></th>
+                </template>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="row in batchRows" :key="row.id">
+                <tr :class="{'batch-matrix__row--mixed': rowHasDisagreement(row)}">
+                  <td class="mono" x-text="row.text"></td>
+                  <td x-show="anyExpected()" x-text="row.expected_intent ?? ''"></td>
+                  <template x-for="chip in selectedChips()" :key="chip.id">
+                    <td :class="cellClass(row, chip.id)">
+                      <span x-text="cellIntent(row, chip.id)"></span>
+                      <small class="batch-matrix__lat" x-text="cellLatency(row, chip.id)"></small>
+                    </td>
+                  </template>
+                </tr>
+              </template>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2" class="batch-matrix__foot">Aggregate agreement</td>
+                <template x-for="chip in selectedChips()" :key="chip.id">
+                  <td x-text="modelAccuracy(chip.id)"></td>
+                </template>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </div>
     </section>

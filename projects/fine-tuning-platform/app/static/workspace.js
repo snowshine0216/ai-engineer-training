@@ -209,6 +209,12 @@ function predictExpanded() {
     busy: false,
     history: [],
     _summary: { agreement: 0, majority: null },
+    batchPromptsRaw: '',
+    batchDatasetId: '',
+    batchRows: [],
+    batchBusy: false,
+    batchProgress: 0,
+    batchTotal: 0,
 
     bind() {
       this.history = this._loadHistory();
@@ -286,6 +292,86 @@ function predictExpanded() {
       };
       this.history = [entry, ...this.history.filter(prior => prior.prompt !== prompt)].slice(0, HISTORY_CAP);
       try { localStorage.setItem(HISTORY_KEY, JSON.stringify(this.history)); } catch {}
+    },
+    canRunBatch() { return this._batchPrompts().length > 0 && this.selected.length > 0; },
+    _batchPrompts() {
+      return this.batchPromptsRaw.split('\n').map(line => line.trim()).filter(Boolean);
+    },
+    async loadEvalSet() {
+      if (!this.batchDatasetId) return;
+      const response = await fetch(`/api/datasets/${this.batchDatasetId}/eval`);
+      if (!response.ok) return;
+      const body = await response.json();
+      this.batchRows = (body.rows ?? []).map((row, index) => ({
+        id: 'eval:' + index,
+        text: row.text,
+        expected_intent: row.expected_intent || null,
+        cells: {},
+      }));
+      this.batchPromptsRaw = (body.rows ?? []).map(row => row.text).join('\n');
+    },
+    async runBatch() {
+      if (!this.canRunBatch()) return;
+      const prompts = this._batchPrompts();
+      const lookup = new Map(this._allOptions().map(option => [option.id, option]));
+      const specs = this.selected.map(id => {
+        const option = lookup.get(id);
+        return { kind: option?.kind === 'base' ? 'base' : 'artifact', ref: id };
+      });
+      this.batchBusy = true;
+      this.batchProgress = 0;
+      this.batchTotal = prompts.length;
+      const rows = prompts.map((text, index) => {
+        const existing = this.batchRows.find(row => row.text === text);
+        return {
+          id: existing?.id ?? 'p:' + index,
+          text,
+          expected_intent: existing?.expected_intent ?? null,
+          cells: {},
+        };
+      });
+      try {
+        for (const row of rows) {
+          const response = await fetch('/api/predict-intent/compare', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: row.text, model_specs: specs }),
+          });
+          const body = await response.json();
+          row.cells = Object.fromEntries((body.results ?? []).map(result => [result.model_id, result]));
+          this.batchProgress += 1;
+          this.batchRows = [...rows];
+        }
+      } finally {
+        this.batchBusy = false;
+      }
+    },
+    anyExpected() { return this.batchRows.some(row => row.expected_intent); },
+    rowHasDisagreement(row) {
+      const intents = Object.values(row.cells).map(cell => cell.intent).filter(Boolean);
+      return intents.length > 1 && new Set(intents).size > 1;
+    },
+    cellIntent(row, chipId) { return row.cells[chipId]?.intent ?? row.cells[chipId]?.error ?? '—'; },
+    cellLatency(row, chipId) { return row.cells[chipId]?.latency_ms ? row.cells[chipId].latency_ms + ' ms' : ''; },
+    cellClass(row, chipId) {
+      const cell = row.cells[chipId];
+      if (!cell || !row.expected_intent || !cell.intent) return '';
+      return cell.intent === row.expected_intent ? 'batch-matrix__match' : 'batch-matrix__miss';
+    },
+    modelAccuracy(chipId) {
+      const evaluable = this.batchRows.filter(row => row.expected_intent);
+      if (evaluable.length === 0) return '';
+      const hits = evaluable.filter(row => row.cells[chipId]?.intent === row.expected_intent).length;
+      return Math.round((hits / evaluable.length) * 100) + '%';
+    },
+    exportJson() {
+      const blob = new Blob([JSON.stringify(this.batchRows, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'predict-compare-batch.json';
+      link.click();
+      URL.revokeObjectURL(url);
     },
   };
 }

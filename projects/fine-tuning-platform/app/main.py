@@ -1,6 +1,7 @@
 from collections.abc import Callable
 from dataclasses import asdict
 import asyncio
+import json
 import re
 import time
 from pathlib import Path
@@ -109,6 +110,31 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
     def list_datasets() -> dict[str, object]:
         summaries = scan_datasets(app_root / "training_data")
         return {"datasets": [summary.__dict__ for summary in summaries]}
+
+    @app.get("/api/datasets/{dataset_id}/eval")
+    def get_dataset_eval(dataset_id: str) -> dict[str, object]:
+        if not _DATASET_ID_RE.match(dataset_id):
+            raise HTTPException(status_code=400, detail="invalid dataset_id format")
+        eval_path = app_root / "training_data" / dataset_id / "eval.jsonl"
+        if not eval_path.exists():
+            raise HTTPException(status_code=404, detail=f"dataset {dataset_id!r} eval split not found")
+        rows: list[dict[str, str]] = []
+        with eval_path.open(encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                payload = json.loads(line)
+                text = payload.get("input") or payload.get("instruction") or ""
+                output_raw = payload.get("output", "")
+                expected_intent = ""
+                if isinstance(output_raw, str) and output_raw.startswith("{"):
+                    try:
+                        parsed = json.loads(output_raw)
+                        expected_intent = parsed.get("intent", "") if isinstance(parsed, dict) else ""
+                    except json.JSONDecodeError:
+                        expected_intent = ""
+                rows.append({"text": text, "expected_intent": expected_intent})
+        return {"dataset_id": dataset_id, "rows": rows}
 
     @app.get("/api/models/base")
     def list_base_models() -> dict[str, object]:
