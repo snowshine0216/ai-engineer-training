@@ -196,3 +196,96 @@ function upload() {
     },
   };
 }
+
+const HISTORY_KEY = 'workspace.predict.history.v1';
+const HISTORY_CAP = 50;
+
+function predictExpanded() {
+  return {
+    tab: 'quick',
+    prompt: '',
+    selected: [],
+    results: [],
+    busy: false,
+    history: [],
+    _summary: { agreement: 0, majority: null },
+
+    bind() {
+      this.history = this._loadHistory();
+      document.addEventListener('predict:select-job', (event) => {
+        const candidate = (this._allOptions() ?? []).find(option => option.kind === 'adapter' && option.id.startsWith(event.detail.jobId + ':'));
+        if (candidate && !this.selected.includes(candidate.id)) {
+          this.selected = [...this.selected, candidate.id];
+        }
+      });
+    },
+
+    _allOptions() {
+      const root = Alpine.$data(this.$root);
+      const base = (root?.baseModels ?? []).map(model => ({ id: model.path, label: model.name, kind: 'base' }));
+      const arts = (root?.artifacts ?? []).map(artifact => ({ id: artifact.artifact_id, label: artifact.label, kind: artifact.kind }));
+      return [...base, ...arts];
+    },
+    selectedChips() {
+      const lookup = new Map(this._allOptions().map(option => [option.id, option]));
+      return this.selected.map(id => lookup.get(id)).filter(Boolean);
+    },
+    availableOptions() {
+      const taken = new Set(this.selected);
+      return this._allOptions().filter(option => !taken.has(option.id));
+    },
+    toggleModel(id) {
+      if (!id) return;
+      this.selected = this.selected.includes(id) ? this.selected.filter(value => value !== id) : [...this.selected, id];
+    },
+    canRun() { return this.prompt.trim().length > 0 && this.selected.length > 0; },
+
+    async run() {
+      if (!this.canRun()) return;
+      this.busy = true;
+      try {
+        const lookup = new Map(this._allOptions().map(option => [option.id, option]));
+        const specs = this.selected.map(id => {
+          const option = lookup.get(id);
+          return { kind: option?.kind === 'base' ? 'base' : 'artifact', ref: id };
+        });
+        const response = await fetch('/api/predict-intent/compare', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: this.prompt, model_specs: specs }),
+        });
+        const body = await response.json();
+        this.results = body.results ?? [];
+        this._summary = body.summary ?? { agreement: 0, majority: null };
+        this._pushHistory(this.prompt, this._summary);
+      } finally {
+        this.busy = false;
+      }
+    },
+    isMinority(result) {
+      return this._summary?.majority && result.intent && result.intent !== this._summary.majority;
+    },
+    summaryText() {
+      const pct = Math.round((this._summary?.agreement ?? 0) * 100);
+      const majority = this._summary?.majority ?? '—';
+      return `Agreement ${pct}% · majority ${majority}`;
+    },
+    shortLabel(modelId) {
+      if (modelId.includes(':')) return modelId.split(':')[0].slice(4, 12) + ' · ' + modelId.split(':')[1];
+      return modelId.split('/').slice(-1)[0];
+    },
+
+    _loadHistory() {
+      try { return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]'); } catch { return []; }
+    },
+    _pushHistory(prompt, summary) {
+      const entry = {
+        id: Date.now() + ':' + Math.random().toString(36).slice(2, 8),
+        prompt,
+        summary: `${Math.round((summary.agreement ?? 0) * 100)}% · ${summary.majority ?? '—'}`,
+      };
+      this.history = [entry, ...this.history.filter(prior => prior.prompt !== prompt)].slice(0, HISTORY_CAP);
+      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(this.history)); } catch {}
+    },
+  };
+}

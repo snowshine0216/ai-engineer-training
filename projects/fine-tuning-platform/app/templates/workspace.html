@@ -131,13 +131,63 @@
     </aside>
 
     <!-- Predict expanded view (replaces right rail when active) -->
-    <section class="panel" data-section="predict-expanded" x-show="predictExpanded">
+    <section class="panel" data-section="predict-expanded" x-show="predictExpanded" x-data="predictExpanded()" x-init="bind()">
       <header class="panel__header">
         <span>Predict — comparison</span>
-        <button class="btn btn--ghost btn--small" @click="predictExpanded = false">Collapse</button>
+        <div>
+          <button class="btn btn--ghost btn--small" :class="{'is-active': tab === 'quick'}" data-tab="quick" @click="tab='quick'">Quick</button>
+          <button class="btn btn--ghost btn--small" :class="{'is-active': tab === 'batch'}" data-tab="batch" @click="tab='batch'">Batch</button>
+          <button class="btn btn--ghost btn--small" @click="predictExpanded = false">Collapse</button>
+        </div>
       </header>
-      <div class="panel__body">
-        <p class="topbar__status">Predict expanded — populated in Tasks 13–14.</p>
+      <div class="panel__body predict-expanded">
+        <div class="predict-expanded__main" x-show="tab === 'quick'">
+          <textarea class="field-input" x-model="prompt" rows="3" placeholder="Prompt — Cmd/Ctrl+Enter to run" @keydown.cmd.enter="run()" @keydown.ctrl.enter="run()"></textarea>
+          <div class="chip-picker">
+            <template x-for="chip in selectedChips()" :key="chip.id">
+              <span class="chip" :class="'chip--' + chip.kind" @click="toggleModel(chip.id)">
+                <span x-text="chip.label"></span>
+                <span aria-hidden="true">×</span>
+              </span>
+            </template>
+            <select class="chip-add" @change="toggleModel($event.target.value); $event.target.value=''">
+              <option value="" disabled selected>+ Add model</option>
+              <template x-for="option in availableOptions()" :key="option.id">
+                <option :value="option.id" x-text="option.label"></option>
+              </template>
+            </select>
+          </div>
+          <button class="btn" :disabled="busy || !canRun()" @click="run()" x-text="busy ? 'Running…' : '▶ Run'"></button>
+          <p class="predict-summary" x-show="results.length" x-text="summaryText()"></p>
+          <div class="predict-results">
+            <template x-for="result in results" :key="result.model_id">
+              <div class="result-card" :class="{'result-card--minority': isMinority(result)}">
+                <div class="result-card__head" x-text="shortLabel(result.model_id)"></div>
+                <div class="result-card__intent" x-text="result.intent ?? '—'"></div>
+                <div class="result-card__meta" x-text="(result.latency_ms ?? '—') + ' ms'"></div>
+                <details x-show="result.raw"><summary>raw</summary><pre x-text="result.raw"></pre></details>
+                <p class="result-card__error" x-show="result.error" x-text="result.error"></p>
+              </div>
+            </template>
+          </div>
+        </div>
+        <aside class="predict-expanded__history" x-show="tab === 'quick'" data-history-panel>
+          <h3 class="history-title">History</h3>
+          <ul class="history-list">
+            <template x-for="entry in history" :key="entry.id">
+              <li @click="prompt = entry.prompt">
+                <span class="mono history-list__prompt" x-text="entry.prompt"></span>
+                <span class="history-list__meta" x-text="entry.summary"></span>
+              </li>
+            </template>
+            <template x-if="history.length === 0">
+              <li class="history-list__empty">No prior runs.</li>
+            </template>
+          </ul>
+        </aside>
+        <div class="predict-expanded__main" x-show="tab === 'batch'">
+          <p class="topbar__status">Batch view — populated in Task 14.</p>
+        </div>
       </div>
     </section>
   </main>
