@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
+from app.domain.artifacts import scan_artifacts
 from app.domain.datasets import parse_jsonl
 from app.domain.jobs import JobStatus, transition
 from app.domain.metrics import compute_intent_metrics
@@ -77,6 +78,16 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
     @app.get("/api/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "service": "fine-tuning-platform"}
+
+    @app.get("/api/artifacts")
+    def list_artifacts() -> dict[str, object]:
+        artifacts = scan_artifacts(
+            jobs_dir=app_root / "jobs",
+            output_root=app_root / "output",
+            merged_root=app_root / "merged_models",
+            quantized_root=app_root / "quantized_models",
+        )
+        return {"artifacts": [artifact.__dict__ for artifact in artifacts]}
 
     _DATASET_ID_RE = re.compile(r"^dataset-[a-f0-9]{12}$")
     _JOB_ID_RE = re.compile(r"^job-[a-f0-9]{12}$")
