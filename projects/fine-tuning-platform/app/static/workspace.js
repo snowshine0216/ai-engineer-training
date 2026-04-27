@@ -96,6 +96,74 @@ function newJob() {
   };
 }
 
+function predict() {
+  return {
+    prompt: '',
+    selected: [],
+    results: [],
+    busy: false,
+    _summary: { agreement: 0, majority: null },
+
+    bind() {
+      document.addEventListener('predict:select-job', (event) => {
+        const candidate = (this._allOptions() ?? []).find(option => option.kind === 'adapter' && option.id.startsWith(event.detail.jobId + ':'));
+        if (candidate && !this.selected.includes(candidate.id)) {
+          this.selected = [...this.selected, candidate.id];
+        }
+      });
+    },
+
+    _allOptions() {
+      const root = Alpine.$data(this.$root);
+      const base = (root?.baseModels ?? []).map(model => ({ id: model.path, label: model.name, kind: 'base' }));
+      const arts = (root?.artifacts ?? []).map(artifact => ({ id: artifact.artifact_id, label: artifact.label, kind: artifact.kind }));
+      return [...base, ...arts];
+    },
+    selectedChips() {
+      const lookup = new Map(this._allOptions().map(option => [option.id, option]));
+      return this.selected.map(id => lookup.get(id)).filter(Boolean);
+    },
+    availableOptions() {
+      const taken = new Set(this.selected);
+      return this._allOptions().filter(option => !taken.has(option.id));
+    },
+    toggleModel(id) {
+      if (!id) return;
+      this.selected = this.selected.includes(id) ? this.selected.filter(value => value !== id) : [...this.selected, id];
+    },
+    canRun() { return this.prompt.trim().length > 0 && this.selected.length > 0; },
+
+    async run() {
+      if (!this.canRun()) return;
+      this.busy = true;
+      try {
+        const lookup = new Map(this._allOptions().map(option => [option.id, option]));
+        const specs = this.selected.map(id => {
+          const option = lookup.get(id);
+          return { kind: option?.kind === 'base' ? 'base' : 'artifact', ref: id };
+        });
+        const response = await fetch('/api/predict-intent/compare', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: this.prompt, model_specs: specs }),
+        });
+        const body = await response.json();
+        this.results = body.results ?? [];
+        this._summary = body.summary ?? { agreement: 0, majority: null };
+      } finally {
+        this.busy = false;
+      }
+    },
+    isMinority(result) {
+      return this._summary?.majority && result.intent && result.intent !== this._summary.majority;
+    },
+    shortLabel(modelId) {
+      if (modelId.includes(':')) return modelId.split(':')[0].slice(4, 12) + ' · ' + modelId.split(':')[1];
+      return modelId.split('/').slice(-1)[0];
+    },
+  };
+}
+
 function upload() {
   return {
     file: null,

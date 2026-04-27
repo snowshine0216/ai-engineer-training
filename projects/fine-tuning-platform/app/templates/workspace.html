@@ -92,13 +92,40 @@
         </div>
       </section>
 
-      <section class="panel" data-section="predict">
+      <section class="panel" data-section="predict" x-data="predict()" x-init="bind()">
         <header class="panel__header">
           <span>Predict</span>
           <button class="btn btn--ghost btn--small" @click="predictExpanded = true">Expand</button>
         </header>
         <div class="panel__body">
-          <p class="topbar__status">Predict (compact) — populated in Task 12.</p>
+          <form @submit.prevent="run()">
+            <textarea class="field-input" data-predict-prompt x-model="prompt" rows="2" placeholder="Enter a prompt…"></textarea>
+            <div class="chip-picker" data-predict-chip-picker>
+              <template x-for="chip in selectedChips()" :key="chip.id">
+                <span class="chip" :class="'chip--' + chip.kind" @click="toggleModel(chip.id)">
+                  <span x-text="chip.label"></span>
+                  <span aria-hidden="true">×</span>
+                </span>
+              </template>
+              <select class="chip-add" @change="toggleModel($event.target.value); $event.target.value=''">
+                <option value="" disabled selected>+ Add model</option>
+                <template x-for="option in availableOptions()" :key="option.id">
+                  <option :value="option.id" x-text="option.label"></option>
+                </template>
+              </select>
+            </div>
+            <button class="btn" type="submit" :disabled="busy || !canRun()" x-text="busy ? 'Running…' : '▶ Run'"></button>
+          </form>
+          <div class="predict-results" x-show="results.length">
+            <template x-for="result in results.slice(0, 3)" :key="result.model_id">
+              <div class="result-card" :class="{'result-card--minority': isMinority(result)}">
+                <div class="result-card__head" x-text="shortLabel(result.model_id)"></div>
+                <div class="result-card__intent" x-text="result.intent ?? '—'"></div>
+                <div class="result-card__meta" x-text="(result.latency_ms ?? '—') + ' ms'"></div>
+                <p class="result-card__error" x-show="result.error" x-text="result.error"></p>
+              </div>
+            </template>
+          </div>
         </div>
       </section>
     </aside>
