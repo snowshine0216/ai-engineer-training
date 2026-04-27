@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from app.domain.artifacts import scan_artifacts
 from app.domain.datasets import parse_jsonl
+from app.domain.datasets_listing import scan_datasets
 from app.domain.jobs import JobStatus, transition
 from app.domain.metrics import compute_intent_metrics
 from app.domain.swift_commands import (
@@ -88,6 +89,11 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
             quantized_root=app_root / "quantized_models",
         )
         return {"artifacts": [artifact.__dict__ for artifact in artifacts]}
+
+    @app.get("/api/datasets")
+    def list_datasets() -> dict[str, object]:
+        summaries = scan_datasets(app_root / "training_data")
+        return {"datasets": [summary.__dict__ for summary in summaries]}
 
     _DATASET_ID_RE = re.compile(r"^dataset-[a-f0-9]{12}$")
     _JOB_ID_RE = re.compile(r"^job-[a-f0-9]{12}$")
