@@ -2,6 +2,7 @@ from collections.abc import Callable
 from dataclasses import asdict
 import asyncio
 import re
+import time
 from pathlib import Path
 from uuid import uuid4
 
@@ -14,8 +15,9 @@ from app.domain.artifacts import scan_artifacts
 from app.domain.base_models import scan_base_models
 from app.domain.datasets import parse_jsonl
 from app.domain.datasets_listing import scan_datasets
+from app.domain.compare_aggregation import aggregate_compare_results
 from app.domain.jobs import JobStatus, transition
-from app.domain.metrics import compute_intent_metrics
+from app.domain.metrics import compute_intent_metrics, parse_intent_response
 from app.domain.swift_commands import (
     AppleSiliconTrainingConfig,
     build_merge_command,
@@ -49,6 +51,16 @@ class EvalRequest(BaseModel):
 
 class UpdateStatusRequest(BaseModel):
     status: str
+
+
+class ModelSpec(BaseModel):
+    kind: str
+    ref: str
+
+
+class PredictIntentCompareRequest(BaseModel):
+    text: str
+    model_specs: list[ModelSpec]
 
 
 class PredictIntentRequest(BaseModel):
@@ -249,6 +261,47 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
             return parse_predict_intent_output(raw_response, text=request.text, artifact_id=request.model_artifact_id)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/api/predict-intent/compare")
+    async def predict_intent_compare(request: PredictIntentCompareRequest) -> dict[str, object]:
+        if infer_raw is None:
+            raise HTTPException(status_code=501, detail="live SWIFT inference is not enabled in tests")
+        if not request.model_specs:
+            raise HTTPException(status_code=400, detail="model_specs must not be empty")
+
+        async def run_one(spec: ModelSpec) -> dict[str, object]:
+            started = time.monotonic()
+            try:
+                raw = await asyncio.to_thread(infer_raw, request.text, spec.ref)
+            except Exception as exc:
+                return {
+                    "model_id": spec.ref,
+                    "kind": spec.kind,
+                    "latency_ms": int((time.monotonic() - started) * 1000),
+                    "error": str(exc),
+                }
+            elapsed_ms = int((time.monotonic() - started) * 1000)
+            parsed = parse_intent_response(raw)
+            if parsed.error:
+                return {
+                    "model_id": spec.ref,
+                    "kind": spec.kind,
+                    "latency_ms": elapsed_ms,
+                    "error": parsed.error,
+                    "raw": raw,
+                }
+            return {
+                "model_id": spec.ref,
+                "kind": spec.kind,
+                "intent": parsed.intent,
+                "confidence": parsed.confidence,
+                "latency_ms": elapsed_ms,
+                "raw": raw,
+            }
+
+        results = list(await asyncio.gather(*(run_one(spec) for spec in request.model_specs)))
+        summary = aggregate_compare_results(results)
+        return {"text": request.text, "results": results, "summary": summary.__dict__}
 
     return app
 
