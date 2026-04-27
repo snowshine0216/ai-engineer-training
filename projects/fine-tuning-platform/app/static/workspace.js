@@ -18,6 +18,8 @@ function workspace() {
           this._startPolling();
         }
       });
+      document.addEventListener('datasets:changed', () => this.refreshDatasets());
+      document.addEventListener('artifacts:changed', () => this.refreshArtifacts());
     },
     _startPolling() {
       if (this._pollHandle !== null) return;
@@ -55,6 +57,39 @@ function workspace() {
     openPredictForJob(job) {
       this.predictExpanded = true;
       document.dispatchEvent(new CustomEvent('predict:select-job', { detail: { jobId: job.job_id } }));
+    },
+  };
+}
+
+function upload() {
+  return {
+    file: null,
+    busy: false,
+    lastUpload: '',
+    issues: [],
+    async submit(event) {
+      if (!this.file) return;
+      this.busy = true;
+      this.issues = [];
+      this.lastUpload = '';
+      const formData = new FormData();
+      formData.append('training_dataset', this.file);
+      try {
+        const response = await fetch('/api/datasets', { method: 'POST', body: formData });
+        const body = await response.json();
+        if (response.ok) {
+          this.lastUpload = `Uploaded ${body.dataset_id} (${body.row_count} rows)`;
+          this.file = null;
+          event.target.reset();
+          document.dispatchEvent(new CustomEvent('datasets:changed'));
+        } else {
+          this.issues = body.issues ?? [{ row_number: 0, message: 'Upload failed' }];
+        }
+      } catch (err) {
+        this.issues = [{ row_number: 0, message: String(err) }];
+      } finally {
+        this.busy = false;
+      }
     },
   };
 }

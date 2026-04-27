@@ -44,10 +44,22 @@
 
     <!-- Right rail -->
     <aside class="right-rail" x-show="!predictExpanded">
-      <section class="panel" data-section="upload">
+      <section class="panel" data-section="upload" x-data="upload()">
         <header class="panel__header"><span>Upload Dataset</span></header>
         <div class="panel__body">
-          <p class="topbar__status">Upload — populated in Task 10.</p>
+          <form @submit.prevent="submit($event)">
+            <label class="dropzone">
+              <input type="file" name="training_dataset" accept=".jsonl" @change="file = $event.target.files[0]" required>
+              <span x-text="file ? file.name : 'Drop .jsonl or click to choose'"></span>
+            </label>
+            <button class="btn" type="submit" :disabled="busy" x-text="busy ? 'Uploading…' : 'Upload'"></button>
+          </form>
+          <p class="upload-result" x-show="lastUpload" x-text="lastUpload"></p>
+          <ul class="upload-issues" x-show="issues.length">
+            <template x-for="issue in issues" :key="issue.row_number">
+              <li><span class="mono" x-text="'row ' + issue.row_number"></span>: <span x-text="issue.message"></span></li>
+            </template>
+          </ul>
         </div>
       </section>
 

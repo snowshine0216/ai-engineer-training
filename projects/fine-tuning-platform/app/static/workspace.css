@@ -141,3 +141,34 @@ code, kbd, pre, .mono { font-family: var(--font-mono); }
 }
 .jobs-table tbody tr:last-child td { border-bottom: 0; }
 .jobs-table .mono { font-size: 12px; }
+
+.dropzone {
+  display: block;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--r-md);
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--bg);
+  cursor: pointer;
+  margin-bottom: var(--space-3);
+}
+.dropzone input[type="file"] { display: none; }
+.upload-result {
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--green-bg);
+  color: var(--green-fg);
+  border-radius: var(--r-sm);
+  font-size: 12px;
+}
+.upload-issues {
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--red-bg);
+  color: var(--red-fg);
+  border-radius: var(--r-sm);
+  list-style: none;
+  font-size: 12px;
+}
+.upload-issues li { padding: 2px 0; }
