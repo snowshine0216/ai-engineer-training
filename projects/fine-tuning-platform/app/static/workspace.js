@@ -20,6 +20,7 @@ function workspace() {
       });
       document.addEventListener('datasets:changed', () => this.refreshDatasets());
       document.addEventListener('artifacts:changed', () => this.refreshArtifacts());
+      document.addEventListener('jobs:changed', () => this.refreshJobs());
     },
     _startPolling() {
       if (this._pollHandle !== null) return;
@@ -57,6 +58,40 @@ function workspace() {
     openPredictForJob(job) {
       this.predictExpanded = true;
       document.dispatchEvent(new CustomEvent('predict:select-job', { detail: { jobId: job.job_id } }));
+    },
+  };
+}
+
+function newJob() {
+  return {
+    datasetId: '',
+    modelPath: '',
+    busy: false,
+    lastJob: '',
+    error: '',
+    async submit() {
+      if (!this.datasetId || !this.modelPath) return;
+      this.busy = true;
+      this.error = '';
+      this.lastJob = '';
+      try {
+        const response = await fetch('/api/jobs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dataset_id: this.datasetId, model_path: this.modelPath }),
+        });
+        const body = await response.json();
+        if (response.ok) {
+          this.lastJob = `Created ${body.job_id} (${body.status})`;
+          document.dispatchEvent(new CustomEvent('jobs:changed'));
+        } else {
+          this.error = body.detail ?? 'Failed to create job';
+        }
+      } catch (err) {
+        this.error = String(err);
+      } finally {
+        this.busy = false;
+      }
     },
   };
 }

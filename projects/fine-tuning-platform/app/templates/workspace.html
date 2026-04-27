@@ -63,10 +63,32 @@
         </div>
       </section>
 
-      <section class="panel" data-section="new-job">
+      <section class="panel" data-section="new-job" x-data="newJob()">
         <header class="panel__header"><span>New Job</span></header>
         <div class="panel__body">
-          <p class="topbar__status">New Job — populated in Task 11.</p>
+          <form @submit.prevent="submit()">
+            <label class="field">
+              <span>Dataset</span>
+              <select x-model="datasetId" required>
+                <option value="" disabled>Select a dataset…</option>
+                <template x-for="dataset in datasets" :key="dataset.dataset_id">
+                  <option :value="dataset.dataset_id" x-text="dataset.dataset_id + ' — ' + dataset.row_count + ' rows'"></option>
+                </template>
+              </select>
+            </label>
+            <label class="field">
+              <span>Base model</span>
+              <select x-model="modelPath" required>
+                <option value="" disabled>Select a base model…</option>
+                <template x-for="model in baseModels" :key="model.path">
+                  <option :value="model.path" x-text="model.name"></option>
+                </template>
+              </select>
+            </label>
+            <button class="btn" type="submit" :disabled="busy" x-text="busy ? 'Creating…' : '▶ Train'"></button>
+          </form>
+          <p class="upload-result" x-show="lastJob" x-text="lastJob"></p>
+          <p class="upload-issues" x-show="error" x-text="error"></p>
         </div>
       </section>
 
