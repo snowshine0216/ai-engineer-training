@@ -7,7 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -77,19 +77,19 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
 
     @app.get("/")
     def index(request: Request):
-        return templates.TemplateResponse(request=request, name="index.html")
+        return templates.TemplateResponse(request=request, name="workspace.html")
 
     @app.get("/datasets/new")
-    def dataset_new(request: Request):
-        return templates.TemplateResponse(request=request, name="dataset_new.html")
+    def legacy_dataset_new() -> RedirectResponse:
+        return RedirectResponse(url="/", status_code=307)
 
     @app.get("/jobs/new")
-    def job_new(request: Request):
-        return templates.TemplateResponse(request=request, name="job_new.html")
+    def legacy_job_new() -> RedirectResponse:
+        return RedirectResponse(url="/", status_code=307)
 
     @app.get("/predict")
-    def predict_page(request: Request):
-        return templates.TemplateResponse(request=request, name="predict.html")
+    def legacy_predict() -> RedirectResponse:
+        return RedirectResponse(url="/", status_code=307)
 
     @app.get("/api/health")
     def health() -> dict[str, str]:

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="app" x-data="workspace()" x-init="bootstrap()">
+  <header class="topbar">
+    <div class="topbar__brand">
+      <span class="topbar__logo" aria-hidden="true"></span>
+      <span>Fine-Tuning Platform</span>
+    </div>
+    <div class="topbar__status">
+      <span class="pill pill--running" x-show="runningCount() > 0" x-text="runningCount() + ' running'"></span>
+    </div>
+  </header>
+
+  <main class="workspace" :class="{ 'workspace--predict-expanded': predictExpanded }">
+    <!-- Jobs panel (left) -->
+    <section class="panel" data-section="jobs">
+      <header class="panel__header">
+        <span>Jobs</span>
+        <span class="topbar__status" x-text="jobs.length + ' total'"></span>
+      </header>
+      <div class="panel__body">
+        <p class="topbar__status">Jobs panel — populated in Task 9.</p>
+      </div>
+    </section>
+
+    <!-- Right rail -->
+    <aside class="right-rail" x-show="!predictExpanded">
+      <section class="panel" data-section="upload">
+        <header class="panel__header"><span>Upload Dataset</span></header>
+        <div class="panel__body">
+          <p class="topbar__status">Upload — populated in Task 10.</p>
+        </div>
+      </section>
+
+      <section class="panel" data-section="new-job">
+        <header class="panel__header"><span>New Job</span></header>
+        <div class="panel__body">
+          <p class="topbar__status">New Job — populated in Task 11.</p>
+        </div>
+      </section>
+
+      <section class="panel" data-section="predict">
+        <header class="panel__header">
+          <span>Predict</span>
+          <button class="btn btn--ghost btn--small" @click="predictExpanded = true">Expand</button>
+        </header>
+        <div class="panel__body">
+          <p class="topbar__status">Predict (compact) — populated in Task 12.</p>
+        </div>
+      </section>
+    </aside>
+
+    <!-- Predict expanded view (replaces right rail when active) -->
+    <section class="panel" data-section="predict-expanded" x-show="predictExpanded">
+      <header class="panel__header">
+        <span>Predict — comparison</span>
+        <button class="btn btn--ghost btn--small" @click="predictExpanded = false">Collapse</button>
+      </header>
+      <div class="panel__body">
+        <p class="topbar__status">Predict expanded — populated in Tasks 13–14.</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/workspace.js"></script>
+</div>
+{% endblock %}
