@@ -1,108 +1,85 @@
 # Handoff Document
-*Last updated: 2026-04-26 17:19 CST (GMT+8)*
+*Last updated: 2026-04-27 (post-ship) CST (GMT+8)*
 
 ## Goal
 
-Build a standalone fine-tuning platform for ModelScope SWIFT LoRA workflows. The first use case is training a generative user-intent analysis model based on `Qwen2.5-7B-Instruct`, then exposing a FastAPI inference endpoint that `chat-site` can call later.
+Redesign the fine-tuning platform UI from four bare Jinja pages into a single workspace dashboard. Three concrete user asks: (1) consolidate the four nav pages onto one page, (2) replace free-text dataset/artifact ID inputs with dropdown selectors, (3) support multi-model side-by-side prediction comparison (including the base model). The platform itself (SWIFT LoRA + FastAPI MVP) was shipped earlier — see commit `9223a75 feat: fine-tuning platform MVP`. This session is a UI/UX iteration on top of that.
 
-## Current Progress
+## Current Status
 
-- Brainstorming and design are complete for the MVP.
-- Final architecture decision: create a standalone Python FastAPI app at `/Users/snow/.codex/worktrees/4f34/ai-engineer-training/projects/fine-tuning-platform`.
-- The platform should use ModelScope SWIFT through CLI subprocesses, not private SWIFT Python internals.
-- The default runtime profile is Apple Silicon local development: MPS/CPU-friendly settings, small batch size, gradient accumulation, conservative max length.
-- The model approach is generative SFT, not sequence classification. Training rows should teach Qwen to return strict intent JSON such as `{"intent":"weather_query","confidence":1.0}`.
-- Eval behavior is decided:
-  - `training_dataset.jsonl` is required.
-  - `eval_dataset.jsonl` is optional.
-  - If no eval dataset is provided, the platform creates a deterministic 80/20 train/eval split with a fixed seed.
-- Pipeline is decided:
-  `upload dataset -> validate/normalize -> train LoRA -> eval adapter -> merge LoRA -> eval merged model -> quantize merged model -> smoke/eval quantized model when locally runnable -> expose inference endpoint`.
-- Quantization after merge is first-class in the design, with a caveat that Apple Silicon local quantization and CUDA/server deployment are not equivalent.
-- Inference endpoint is in scope:
-  `POST /api/predict-intent` accepts text and an optional artifact ID, returns parsed intent JSON, raw model response, confidence, and artifact ID.
-- Design spec was written, self-reviewed, and committed:
-  - Commit: `ad294e0 docs: design fine-tuning platform MVP`
-  - File: `/Users/snow/.codex/worktrees/4f34/ai-engineer-training/docs/superpowers/specs/2026-04-26-fine-tuning-platform-design.md`
-- Implementation plan was written and self-reviewed:
-  - File: `/Users/snow/.codex/worktrees/4f34/ai-engineer-training/docs/superpowers/plans/2026-04-26-fine-tuning-platform.md`
-  - It is ignored by `.gitignore` because of `**/plans`, so it is saved locally but not tracked or committed.
-- Visual companion was used for an architecture diagram and then stopped. Its generated files remain untracked under `.superpowers/`.
+**SHIPPED — PR #8 open on GitHub (`claude/zen-jang-0cc430` → `main`).** The Two-Pane Workspace UI redesign is fully implemented and reviewed. 112 tests passing. The next action is landing the PR.
+
+This session completed brainstorming → design → implementation plan → full TDD implementation → pre-landing review → adversarial security review → PR creation.
+
+- **Brainstorm** (visual companion in browser, three picks):
+  - Layout: **B. Two-Pane Workspace** — Jobs primary on the left, action cards stacked on the right rail.
+  - Predict view: **C. Hybrid Quick / Batch tabs** — Card Row for ad-hoc single-prompt compare; Comparison Matrix for batch.
+  - Visual style: **B. Modern Workspace** — soft slate background, rounded corners, indigo→violet accent, status pills.
+
+- **Design spec** written, self-reviewed, and committed:
+  - Path: `docs/superpowers/specs/2026-04-27-workspace-ui-redesign.md`
+  - Commit: `8ff3a9f docs: workspace UI redesign spec`
+  - Defines 4 new endpoints (`/api/datasets`, `/api/artifacts`, `/api/models/base`, `POST /api/predict-intent/compare`) plus a `/api/datasets/{id}/eval` helper added during planning. Legacy routes redirect to `/`.
+
+- **Implementation plan** written, self-reviewed, force-committed (gitignore matched `**/plans`):
+  - Path: `docs/superpowers/plans/2026-04-27-workspace-ui-redesign.md`
+  - Commit: `8b344ce docs: workspace UI redesign implementation plan`
+  - 15 tasks, each with bite-sized TDD steps and full code (no placeholders).
+  - Spec coverage table cross-references every requirement to a task.
+  - One spec item explicitly deferred: click-to-expand job-row drawer (artifact paths, command, log tail). Backend endpoints already exist; deferred as a small UI follow-up.
+
+- **Gitignore tweak** committed (`c229109`): added `.superpowers/` so the brainstorming scratch dir doesn't pollute git status.
+
+- **Tech direction locked in:**
+  - Frontend: single Jinja2 template + Alpine.js v3 (CDN) + hand-rolled CSS with design tokens. **No build pipeline. No Tailwind. No SPA framework.**
+  - Backend: FastAPI stays as-is. New endpoints added; existing endpoints unchanged.
+  - Reactivity: per-component `x-data` blocks; events for cross-component refresh (`datasets:changed`, `jobs:changed`, `predict:select-job`).
+  - Polling cadence: 5 s on `/api/jobs`, paused on `visibilitychange`.
+  - Multi-model fan-out: server-side `asyncio.gather` over `asyncio.to_thread(infer_raw, ...)`.
 
 ## What Worked
 
-- Reading the course notes and existing lab before designing clarified the core flow: LoRA training, merge, quantize, deploy behind a FastAPI-style wrapper.
-- Reading `/Users/snow/Documents/Repository/ai-engineer-training/swift-m5-lab/README.md` confirmed that Python + `uv` + SWIFT CLI is the practical base.
-- Checking prior projects helped avoid a wrong architecture:
-  - `project2_1` uses a PEFT sequence-classification approach, which was intentionally rejected for this MVP.
-  - `project2_2` has SWIFT-style LoRA and FastAPI prior art worth borrowing from.
-- Checking current SWIFT/Qwen docs confirmed that SWIFT supports LoRA, QLoRA, export/merge, quantization, evaluation, deployment, and OpenAI-compatible serving paths.
-- The final plan includes TDD steps and keeps pure logic separate from file/subprocess/model effects, matching `AGENTS.md` functional-programming instructions.
+- Visual companion with concrete A/B/C mockups got crisp picks fast — three questions, three confident answers.
+- Reading existing tests (`test_pages.py`, `test_jobs_api.py`) before writing the plan caught the pattern (`TestClient(create_app(root=tmp_path))`) and the fact that `infer_raw` is dependency-injected.
+- Cross-checking the spec against a coverage table during self-review caught the missing job-row drawer immediately.
+- Following the repo's CLAUDE.md FP rules (pure functions for filesystem scans + result aggregation; I/O at handler boundaries) made the test plan straightforward — every pure function is unit-tested without mocks.
 
 ## What Didn't Work
 
-- The first attempt to read `swift-m5-lab/README.md` used a bad working directory/path context and failed; re-running with the correct path worked.
-- A full Next.js UI was considered but rejected for the MVP. SWIFT is Python-native, so FastAPI with simple server-rendered pages is easier and less coupled.
-- Importing SWIFT internals directly was rejected because the CLI is the more stable contract.
-- A thin wrapper around `swift web-ui` was rejected because it would not produce a clean custom platform or stable future `chat-site` integration contract.
-- The implementation plan is under an ignored path. If future agents need it tracked, they must either force-add it or move it to a non-ignored path.
+- `docs/superpowers/plans/` is gitignored by the existing `**/plans` rule (intended for training output dirs). Had to `git add -f` to commit the plan. **If future agents add more plans here, they must force-add or amend `.gitignore` to whitelist `docs/superpowers/plans/`.**
+- A first git commit attempt that bundled `.gitignore` + the spec failed because I hadn't `Read` the gitignore file before `Edit` — Edit requires a prior Read. Worked around with a separate commit. Lesson: always `Read` before `Edit`.
 
 ## Next Steps
 
-1. Ask the user to choose execution mode if not already chosen:
-   - Subagent-driven execution using `superpowers:subagent-driven-development` is recommended.
-   - Inline execution using `superpowers:executing-plans` is the alternative.
-2. If executing inline or via subagents, start with Task 1 in:
-   `/Users/snow/.codex/worktrees/4f34/ai-engineer-training/docs/superpowers/plans/2026-04-26-fine-tuning-platform.md`
-3. Implement the plan task-by-task with TDD:
-   - scaffold FastAPI project and health route
-   - add dataset validation/normalization
-   - add metrics and JSON parsing
-   - add SWIFT command builders
-   - add job status transitions
-   - add local storage and job repository
-   - add subprocess runner
-   - add dataset/job/artifact/inference APIs
-   - add simple server-rendered pages
-   - add README and final verification
-4. Before implementation, decide whether to force-track the plan despite `.gitignore`:
-   `git add -f docs/superpowers/plans/2026-04-26-fine-tuning-platform.md`
-   Only do this if the user wants the plan committed.
-5. Final verification after implementation should include:
-   `uv run pytest -v`
-   and a Python import smoke check from `projects/fine-tuning-platform`.
+1. **Land PR #8** — `gh pr merge 8 --squash` (or use `/land-and-deploy`).
+
+2. **Optional follow-up** (deferred from plan): job-row click-to-expand drawer showing artifact paths, command, and log tail. Backend endpoints (`GET /api/jobs/{id}` and `/logs`) already supply the data — UI-only extension.
+
+3. **3 INVESTIGATE items** from adversarial review (not blocking merge):
+   - TOCTOU race in `update_job_status` — single-worker dev server is safe; affects multi-worker deploys only.
+   - 100% agreement when all-but-one model fails — intentional design decision.
+   - `_DATASET_ID_RE`/`_JOB_ID_RE` defined mid-module — latent readability issue, not a security risk.
 
 ## Key Files & Locations
 
-- Root worktree:
-  `/Users/snow/.codex/worktrees/4f34/ai-engineer-training`
-- Current workspace folder:
-  `/Users/snow/.codex/worktrees/4f34/ai-engineer-training/projects`
-- Planned app location:
-  `/Users/snow/.codex/worktrees/4f34/ai-engineer-training/projects/fine-tuning-platform`
-- Design spec:
-  `/Users/snow/.codex/worktrees/4f34/ai-engineer-training/docs/superpowers/specs/2026-04-26-fine-tuning-platform-design.md`
-- Implementation plan:
-  `/Users/snow/.codex/worktrees/4f34/ai-engineer-training/docs/superpowers/plans/2026-04-26-fine-tuning-platform.md`
-- Course note read:
-  `/Users/snow/Documents/Repository/snow-knowledge-database/courses/ai-engineering-training-camp/module-2-fine-tuning/020-model-evaluation-and-deployment.md`
-- SWIFT lab read:
-  `/Users/snow/Documents/Repository/ai-engineer-training/swift-m5-lab/README.md`
-- Future integration target:
-  `/Users/snow/Documents/Repository/ai-engineer-training/projects/chat-site`
-- Useful prior art:
-  `/Users/snow/.codex/worktrees/4f34/ai-engineer-training/projects/project2_1`
-  `/Users/snow/.codex/worktrees/4f34/ai-engineer-training/projects/project2_2`
+- **Worktree root:** `/Users/snow/Documents/Repository/ai-engineer-training/projects/fine-tuning-platform/.claude/worktrees/zen-jang-0cc430/`
+- **Project app:** `projects/fine-tuning-platform/`
+- **Spec:** `docs/superpowers/specs/2026-04-27-workspace-ui-redesign.md`
+- **Plan:** `docs/superpowers/plans/2026-04-27-workspace-ui-redesign.md` (force-tracked despite `**/plans` gitignore)
+- **Brainstorm scratch (not tracked):** `.superpowers/brainstorm/52910-1777259418/` — the visual companion mockups (`layout-pattern.html`, `predict-comparison.html`, `visual-style.html`, `waiting.html`)
+- **Existing platform code (don't break):**
+  - `projects/fine-tuning-platform/app/main.py` — FastAPI app factory, existing endpoints
+  - `projects/fine-tuning-platform/app/domain/` — pure-function modules (`datasets.py`, `jobs.py`, `metrics.py`, `swift_commands.py`)
+  - `projects/fine-tuning-platform/app/services/` — I/O modules (`storage.py`, `inference.py`, `job_repository.py`, `subprocess_runner.py`)
+  - `projects/fine-tuning-platform/app/templates/` — four templates that the plan replaces with one
+  - `projects/fine-tuning-platform/tests/` — existing test patterns to mirror
 
 ## Context & Notes
 
-- User explicitly chose:
-  - MVP scope, not full platform.
-  - Standalone project under `projects/fine-tuning-platform`.
-  - FastAPI UI/backend, not Next.js UI for the MVP.
-  - Generative SFT intent model, not sequence classification.
-  - Apple Silicon local training profile.
-- The root `AGENTS.md` instructions emphasize functional programming, immutability, pure functions, explicit data flow, small modules, and TDD.
-- The implementation plan obeys TDD and gives exact red/green/commit steps.
-- Current git state before this handoff edit had untracked `.superpowers/` and `projects/AGENTS.md`. Do not delete or revert them unless the user asks.
-- The design spec commit exists, but this handoff update itself is not committed unless a future user asks for it.
+- **Repo CLAUDE.md is strict:** TDD (red/green/refactor), pure functions, immutability via `@dataclass(frozen=True)`, explicit data flow, no module-level mutable state. Every backend task in the plan honors this. The frontend is necessarily stateful (Alpine.js components) but state is component-local; cross-component coordination uses `CustomEvent`.
+- **Git committer warns "Your name and email address were configured automatically"** on every commit. Not blocking; user can fix later via `git config`.
+- **Worktree is on branch `claude/zen-jang-0cc430`**, not `main`. PRs land on `main`. Don't push or create a PR until the user asks — the plan is a checkpoint, not the deliverable.
+- **`.gitignore` already excludes `.superpowers/`** (added this session in commit `c229109`).
+- **Auto mode is active** — user prefers continuous execution with minimal interruptions for routine decisions. They'll course-correct if needed. Save asks for risky/destructive moves (force-push, dropping data, anything visible to others).
+- **No e2e/Playwright** in scope. Frontend tests are template-rendering smoke tests (`assert "<marker>" in response.text`) plus manual browser verification.
+- **The user is Chinese-speaking** (sample prompts in the spec/mockups use 中文). The intent classification dataset format expects Chinese text.

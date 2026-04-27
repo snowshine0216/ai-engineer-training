@@ -1,18 +1,25 @@
 from collections.abc import Callable
 from dataclasses import asdict
 import asyncio
+import json
 import re
+import time
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
+from app.domain.artifacts import scan_artifacts
+from app.domain.base_models import scan_base_models
 from app.domain.datasets import parse_jsonl
+from app.domain.datasets_listing import scan_datasets
+from app.domain.compare_aggregation import aggregate_compare_results
 from app.domain.jobs import JobStatus, transition
-from app.domain.metrics import compute_intent_metrics
+from app.domain.metrics import compute_intent_metrics, parse_intent_response
 from app.domain.swift_commands import (
     AppleSiliconTrainingConfig,
     build_merge_command,
@@ -24,19 +31,40 @@ from app.services.job_repository import JobRecord, JsonJobRepository
 from app.services.storage import AppPaths, save_dataset_artifacts
 
 
+def _no_traversal(v: str) -> str:
+    if ".." in v.replace("\\", "/").split("/"):
+        raise ValueError("path must not contain traversal sequences")
+    return v
+
+
 class CreateJobRequest(BaseModel):
     dataset_id: str
     model_path: str
 
+    @field_validator("model_path")
+    @classmethod
+    def _validate_model_path(cls, v: str) -> str:
+        return _no_traversal(v)
+
 
 class MergeRequest(BaseModel):
     adapter_dir: str
+
+    @field_validator("adapter_dir")
+    @classmethod
+    def _validate_adapter_dir(cls, v: str) -> str:
+        return _no_traversal(v)
 
 
 class QuantizeRequest(BaseModel):
     merged_model_dir: str
     quant_bits: int
     quant_method: str
+
+    @field_validator("merged_model_dir")
+    @classmethod
+    def _validate_merged_model_dir(cls, v: str) -> str:
+        return _no_traversal(v)
 
 
 class EvalRequest(BaseModel):
@@ -48,6 +76,21 @@ class UpdateStatusRequest(BaseModel):
     status: str
 
 
+class ModelSpec(BaseModel):
+    kind: str
+    ref: str
+
+    @field_validator("ref")
+    @classmethod
+    def _validate_ref(cls, v: str) -> str:
+        return _no_traversal(v)
+
+
+class PredictIntentCompareRequest(BaseModel):
+    text: str
+    model_specs: list[ModelSpec]
+
+
 class PredictIntentRequest(BaseModel):
     text: str
     model_artifact_id: str = "default"
@@ -56,27 +99,93 @@ class PredictIntentRequest(BaseModel):
 def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | None = None) -> FastAPI:
     app_root = root or Path(".")
     app = FastAPI(title="Fine-Tuning Platform", version="0.1.0")
+    app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
     templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
     @app.get("/")
     def index(request: Request):
-        return templates.TemplateResponse(request=request, name="index.html")
+        return templates.TemplateResponse(request=request, name="workspace.html")
 
     @app.get("/datasets/new")
-    def dataset_new(request: Request):
-        return templates.TemplateResponse(request=request, name="dataset_new.html")
+    def legacy_dataset_new() -> RedirectResponse:
+        return RedirectResponse(url="/", status_code=307)
 
     @app.get("/jobs/new")
-    def job_new(request: Request):
-        return templates.TemplateResponse(request=request, name="job_new.html")
+    def legacy_job_new() -> RedirectResponse:
+        return RedirectResponse(url="/", status_code=307)
 
     @app.get("/predict")
-    def predict_page(request: Request):
-        return templates.TemplateResponse(request=request, name="predict.html")
+    def legacy_predict() -> RedirectResponse:
+        return RedirectResponse(url="/", status_code=307)
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "service": "fine-tuning-platform"}
+
+    @app.get("/api/artifacts")
+    def list_artifacts() -> dict[str, object]:
+        artifacts = scan_artifacts(
+            jobs_dir=app_root / "jobs",
+            output_root=app_root / "output",
+            merged_root=app_root / "merged_models",
+            quantized_root=app_root / "quantized_models",
+        )
+        return {
+            "artifacts": [
+                {
+                    "artifact_id": a.artifact_id,
+                    "job_id": a.job_id,
+                    "kind": a.kind,
+                    "label": a.label,
+                    "created_at": a.created_at,
+                }
+                for a in artifacts
+            ]
+        }
+
+    @app.get("/api/datasets")
+    def list_datasets() -> dict[str, object]:
+        summaries = scan_datasets(app_root / "training_data")
+        return {
+            "datasets": [
+                {
+                    "dataset_id": s.dataset_id,
+                    "row_count": s.row_count,
+                    "created_at": s.created_at,
+                }
+                for s in summaries
+            ]
+        }
+
+    @app.get("/api/datasets/{dataset_id}/eval")
+    def get_dataset_eval(dataset_id: str) -> dict[str, object]:
+        if not _DATASET_ID_RE.match(dataset_id):
+            raise HTTPException(status_code=400, detail="invalid dataset_id format")
+        eval_path = app_root / "training_data" / dataset_id / "eval.jsonl"
+        if not eval_path.exists():
+            raise HTTPException(status_code=404, detail=f"dataset {dataset_id!r} eval split not found")
+        rows: list[dict[str, str]] = []
+        with eval_path.open(encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                payload = json.loads(line)
+                text = payload.get("input") or payload.get("instruction") or ""
+                output_raw = payload.get("output", "")
+                expected_intent = ""
+                if isinstance(output_raw, str) and output_raw.startswith("{"):
+                    try:
+                        parsed = json.loads(output_raw)
+                        expected_intent = parsed.get("intent", "") if isinstance(parsed, dict) else ""
+                    except json.JSONDecodeError:
+                        expected_intent = ""
+                rows.append({"text": text, "expected_intent": expected_intent})
+        return {"dataset_id": dataset_id, "rows": rows}
+
+    @app.get("/api/models/base")
+    def list_base_models() -> dict[str, object]:
+        models = scan_base_models(app_root / "models")
+        return {"models": [{"name": m.name} for m in models]}
 
     _DATASET_ID_RE = re.compile(r"^dataset-[a-f0-9]{12}$")
     _JOB_ID_RE = re.compile(r"^job-[a-f0-9]{12}$")
@@ -85,8 +194,15 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
 
     @app.post("/api/datasets", response_model=None)
     async def upload_dataset(training_dataset: UploadFile = File(...)) -> dict[str, object] | JSONResponse:
+        _MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
         try:
-            raw = (await training_dataset.read()).decode("utf-8")
+            raw_bytes = await training_dataset.read(_MAX_UPLOAD_BYTES + 1)
+            if len(raw_bytes) > _MAX_UPLOAD_BYTES:
+                return JSONResponse(
+                    status_code=413,
+                    content={"issues": [{"row_number": 0, "message": "file exceeds 50 MB limit"}]},
+                )
+            raw = raw_bytes.decode("utf-8")
         except UnicodeDecodeError:
             return JSONResponse(status_code=400, content={"issues": [{"row_number": 0, "message": "file must be UTF-8 encoded"}]})
         parsed = parse_jsonl(raw)
@@ -102,9 +218,6 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
         return {
             "dataset_id": artifact.dataset_id,
             "row_count": len(parsed.rows),
-            "raw_path": artifact.raw_path.as_posix(),
-            "train_path": artifact.train_path.as_posix(),
-            "eval_path": artifact.eval_path.as_posix(),
         }
 
     @app.post("/api/jobs")
@@ -226,6 +339,59 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
             return parse_predict_intent_output(raw_response, text=request.text, artifact_id=request.model_artifact_id)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/api/predict-intent/compare")
+    async def predict_intent_compare(request: PredictIntentCompareRequest) -> dict[str, object]:
+        if infer_raw is None:
+            raise HTTPException(status_code=501, detail="live SWIFT inference is not enabled in tests")
+        if not request.model_specs:
+            raise HTTPException(status_code=400, detail="model_specs must not be empty")
+
+        async def run_one(spec: ModelSpec) -> dict[str, object]:
+            started = time.monotonic()
+            # Resolve base model names to contained paths server-side.
+            ref = spec.ref
+            if spec.kind == "base":
+                resolved = (app_root / "models" / spec.ref).resolve()
+                if not resolved.is_relative_to((app_root / "models").resolve()):
+                    return {
+                        "model_id": spec.ref,
+                        "kind": spec.kind,
+                        "latency_ms": 0,
+                        "error": "model ref resolves outside models directory",
+                    }
+                ref = str(resolved)
+            try:
+                raw = await asyncio.to_thread(infer_raw, request.text, ref)
+            except Exception as exc:
+                return {
+                    "model_id": spec.ref,
+                    "kind": spec.kind,
+                    "latency_ms": int((time.monotonic() - started) * 1000),
+                    "error": str(exc),
+                }
+            elapsed_ms = int((time.monotonic() - started) * 1000)
+            parsed = parse_intent_response(raw)
+            if parsed.error:
+                return {
+                    "model_id": spec.ref,
+                    "kind": spec.kind,
+                    "latency_ms": elapsed_ms,
+                    "error": parsed.error,
+                    "raw": raw,
+                }
+            return {
+                "model_id": spec.ref,
+                "kind": spec.kind,
+                "intent": parsed.intent,
+                "confidence": parsed.confidence,
+                "latency_ms": elapsed_ms,
+                "raw": raw,
+            }
+
+        results = list(await asyncio.gather(*(run_one(spec) for spec in request.model_specs)))
+        summary = aggregate_compare_results(results)
+        return {"text": request.text, "results": results, "summary": summary.__dict__}
 
     return app
 

@@ -46,6 +46,12 @@
 
 **Completed:** v0.1.0.0 (2026-04-26)
 
+### fine-tuning-platform: Two-Pane Workspace UI redesign
+
+**What:** Single-page Alpine.js workspace dashboard with upload, job creation, jobs polling, predict quick/expanded/batch tabs, and multi-model comparison. New REST endpoints: `/api/datasets`, `/api/artifacts`, `/api/models/base`, `/api/predict-intent/compare`, `/api/datasets/{id}/eval`. Path traversal guards, atomic writes, response path stripping.
+
+**Completed:** v0.2.0.0 (2026-04-27)
+
 ## fine-tuning-platform
 
 ### Verify ms-swift CLI flags against installed version

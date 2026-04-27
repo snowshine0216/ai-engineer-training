@@ -15,8 +15,10 @@ def test_upload_dataset_returns_artifact_paths(tmp_path):
     body = response.json()
     assert body["dataset_id"]
     assert body["row_count"] == 1
-    assert body["train_path"].endswith("/train.jsonl")
-    assert body["eval_path"].endswith("/eval.jsonl")
+    # server-side filesystem paths must not be exposed to clients
+    assert "raw_path" not in body
+    assert "train_path" not in body
+    assert "eval_path" not in body
 
 
 def test_upload_dataset_reports_validation_errors(tmp_path):

@@ -2,6 +2,17 @@
 
 Standalone FastAPI MVP for ModelScope SWIFT LoRA fine-tuning workflows.
 
+## Features (v0.2.0.0)
+
+Single-page Two-Pane Workspace dashboard at `http://localhost:8000`:
+
+- **Jobs panel** (left) — live job list with status pills, 5 s polling
+- **Upload Dataset** — drag-and-drop JSONL upload with validation
+- **New Job** — dataset + base-model dropdowns populated from the API
+- **Predict** — chip picker to select models; Quick tab (single prompt + history) and Batch tab (multi-prompt matrix, per-model accuracy, JSON export)
+
+Legacy URLs (`/datasets/new`, `/jobs/new`, `/predict`) redirect 307 → `/`.
+
 ## Setup
 
 ```bash
