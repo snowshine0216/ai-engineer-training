@@ -19,7 +19,26 @@
         <span class="topbar__status" x-text="jobs.length + ' total'"></span>
       </header>
       <div class="panel__body">
-        <p class="topbar__status">Jobs panel — populated in Task 9.</p>
+        <table class="jobs-table" data-jobs-table>
+          <thead>
+            <tr><th>Job</th><th>Dataset</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody>
+            <template x-for="job in jobs" :key="job.job_id">
+              <tr>
+                <td class="mono" x-text="job.job_id"></td>
+                <td class="mono" x-text="job.dataset_id"></td>
+                <td><span class="pill" :class="'pill--' + job.status" x-text="job.status"></span></td>
+                <td>
+                  <button class="btn btn--ghost btn--small" @click="openPredictForJob(job)">▶ Predict</button>
+                </td>
+              </tr>
+            </template>
+            <template x-if="jobs.length === 0">
+              <tr><td colspan="4" class="topbar__status">No jobs yet — create one from the right rail.</td></tr>
+            </template>
+          </tbody>
+        </table>
       </div>
     </section>
 

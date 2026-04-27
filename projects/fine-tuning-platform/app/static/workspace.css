@@ -119,3 +119,25 @@ code, kbd, pre, .mono { font-family: var(--font-mono); }
 @media (max-width: 1024px) {
   .workspace, .workspace--predict-expanded { grid-template-columns: 1fr; }
 }
+
+.jobs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.jobs-table th,
+.jobs-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  vertical-align: middle;
+}
+.jobs-table th {
+  font-weight: 500;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.jobs-table tbody tr:last-child td { border-bottom: 0; }
+.jobs-table .mono { font-size: 12px; }
