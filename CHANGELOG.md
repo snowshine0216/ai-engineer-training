@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-04-27 — Workspace UI redesign
+
+- Replaced four bare templates with a single Two-Pane Workspace dashboard.
+- Added `/api/datasets`, `/api/artifacts`, `/api/models/base`, `/api/predict-intent/compare`, `/api/datasets/{id}/eval`.
+- Multi-model side-by-side prediction comparison with Quick + Batch tabs.
+- Live job-status polling at 5 s, paused on hidden tab.
+
 ## [0.1.0.0] - 2026-04-26
 
 ### Added
