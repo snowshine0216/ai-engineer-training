@@ -28,7 +28,7 @@ html, body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 14px; /* intentional: developer-tool density — smaller than 16px baseline */
   line-height: 1.5;
 }
 
@@ -115,6 +115,7 @@ code, kbd, pre, .mono { font-family: var(--font-mono); }
 }
 .btn--ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
 .btn--small { padding: 4px 10px; font-size: 12px; }
+.btn:focus-visible { outline: 2px solid var(--primary-grad); outline-offset: 2px; }
 
 @media (max-width: 1024px) {
   .workspace, .workspace--predict-expanded { grid-template-columns: 1fr; }
@@ -226,6 +227,7 @@ code, kbd, pre, .mono { font-family: var(--font-mono); }
 }
 .chip--base { background: #dbeafe; color: #1e40af; }
 .chip--adapter, .chip--merged, .chip--quantized { background: var(--green-bg); color: var(--green-fg); }
+.chip:focus-visible, .chip-add:focus-visible { outline: 2px solid var(--primary-grad); outline-offset: 2px; }
 .chip-add {
   border: 0;
   background: transparent;

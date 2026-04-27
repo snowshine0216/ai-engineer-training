@@ -11,7 +11,7 @@ from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from app.domain.artifacts import scan_artifacts
 from app.domain.base_models import scan_base_models
@@ -31,19 +31,40 @@ from app.services.job_repository import JobRecord, JsonJobRepository
 from app.services.storage import AppPaths, save_dataset_artifacts
 
 
+def _no_traversal(v: str) -> str:
+    if ".." in v.replace("\\", "/").split("/"):
+        raise ValueError("path must not contain traversal sequences")
+    return v
+
+
 class CreateJobRequest(BaseModel):
     dataset_id: str
     model_path: str
 
+    @field_validator("model_path")
+    @classmethod
+    def _validate_model_path(cls, v: str) -> str:
+        return _no_traversal(v)
+
 
 class MergeRequest(BaseModel):
     adapter_dir: str
+
+    @field_validator("adapter_dir")
+    @classmethod
+    def _validate_adapter_dir(cls, v: str) -> str:
+        return _no_traversal(v)
 
 
 class QuantizeRequest(BaseModel):
     merged_model_dir: str
     quant_bits: int
     quant_method: str
+
+    @field_validator("merged_model_dir")
+    @classmethod
+    def _validate_merged_model_dir(cls, v: str) -> str:
+        return _no_traversal(v)
 
 
 class EvalRequest(BaseModel):
@@ -58,6 +79,11 @@ class UpdateStatusRequest(BaseModel):
 class ModelSpec(BaseModel):
     kind: str
     ref: str
+
+    @field_validator("ref")
+    @classmethod
+    def _validate_ref(cls, v: str) -> str:
+        return _no_traversal(v)
 
 
 class PredictIntentCompareRequest(BaseModel):
@@ -104,12 +130,32 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
             merged_root=app_root / "merged_models",
             quantized_root=app_root / "quantized_models",
         )
-        return {"artifacts": [artifact.__dict__ for artifact in artifacts]}
+        return {
+            "artifacts": [
+                {
+                    "artifact_id": a.artifact_id,
+                    "job_id": a.job_id,
+                    "kind": a.kind,
+                    "label": a.label,
+                    "created_at": a.created_at,
+                }
+                for a in artifacts
+            ]
+        }
 
     @app.get("/api/datasets")
     def list_datasets() -> dict[str, object]:
         summaries = scan_datasets(app_root / "training_data")
-        return {"datasets": [summary.__dict__ for summary in summaries]}
+        return {
+            "datasets": [
+                {
+                    "dataset_id": s.dataset_id,
+                    "row_count": s.row_count,
+                    "created_at": s.created_at,
+                }
+                for s in summaries
+            ]
+        }
 
     @app.get("/api/datasets/{dataset_id}/eval")
     def get_dataset_eval(dataset_id: str) -> dict[str, object]:
@@ -139,7 +185,7 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
     @app.get("/api/models/base")
     def list_base_models() -> dict[str, object]:
         models = scan_base_models(app_root / "models")
-        return {"models": [model.__dict__ for model in models]}
+        return {"models": [{"name": m.name} for m in models]}
 
     _DATASET_ID_RE = re.compile(r"^dataset-[a-f0-9]{12}$")
     _JOB_ID_RE = re.compile(r"^job-[a-f0-9]{12}$")
@@ -165,9 +211,6 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
         return {
             "dataset_id": artifact.dataset_id,
             "row_count": len(parsed.rows),
-            "raw_path": artifact.raw_path.as_posix(),
-            "train_path": artifact.train_path.as_posix(),
-            "eval_path": artifact.eval_path.as_posix(),
         }
 
     @app.post("/api/jobs")
@@ -299,8 +342,20 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
 
         async def run_one(spec: ModelSpec) -> dict[str, object]:
             started = time.monotonic()
+            # Resolve base model names to contained paths server-side.
+            ref = spec.ref
+            if spec.kind == "base":
+                resolved = (app_root / "models" / spec.ref).resolve()
+                if not str(resolved).startswith(str((app_root / "models").resolve())):
+                    return {
+                        "model_id": spec.ref,
+                        "kind": spec.kind,
+                        "latency_ms": 0,
+                        "error": "model ref resolves outside models directory",
+                    }
+                ref = str(resolved)
             try:
-                raw = await asyncio.to_thread(infer_raw, request.text, spec.ref)
+                raw = await asyncio.to_thread(infer_raw, request.text, ref)
             except Exception as exc:
                 return {
                     "model_id": spec.ref,

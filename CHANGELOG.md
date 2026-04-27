@@ -2,12 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
-## 2026-04-27 — Workspace UI redesign
+## [0.2.0.0] - 2026-04-27 — Two-Pane Workspace UI redesign
 
-- Replaced four bare templates with a single Two-Pane Workspace dashboard.
-- Added `/api/datasets`, `/api/artifacts`, `/api/models/base`, `/api/predict-intent/compare`, `/api/datasets/{id}/eval`.
-- Multi-model side-by-side prediction comparison with Quick + Batch tabs.
-- Live job-status polling at 5 s, paused on hidden tab.
+### Added
+
+- **Single-page workspace dashboard** (`workspace.html` + Alpine.js) replaces four separate Jinja2 template pages
+  - Left pane: Upload Dataset, New Training Job, Jobs list with live 5 s status polling (paused on hidden tab)
+  - Right pane: Predict Quick (single prompt), Predict Expanded (history panel), Predict Batch (eval-set loader with accuracy matrix)
+- **Multi-model comparison** — side-by-side fan-out inference across base models and trained adapters
+  - `POST /api/predict-intent/compare` with parallel fan-out via `asyncio.gather`
+  - Chip-picker model selector with majority-vote agreement summary
+- **New REST endpoints**: `GET /api/datasets`, `GET /api/artifacts`, `GET /api/models/base`, `GET /api/datasets/{id}/eval`
+- **Pure domain function** `aggregate_compare_results` and `scan_artifacts` with 100% unit-test coverage
+
+### Security (adversarial review)
+
+- Path traversal blocked on all user-supplied path fields (`model_path`, `adapter_dir`, `merged_model_dir`, `ModelSpec.ref`) via Pydantic `field_validator`
+- Server-side filesystem paths (`raw_path`, `train_path`, `eval_path`, model directory) no longer exposed in API responses
+- `GET /api/models/base` returns `{name}` only; server resolves name → path internally in `run_one()`
+- Atomic job file writes: write to `.tmp` then rename, eliminating partial-read races
+- Malformed job JSON files are skipped rather than propagating HTTP 500
+
+### Fixed
+
+- `response.ok` guards added to all `refresh*()` polling functions and `run()` prediction calls
+- `URL.revokeObjectURL()` deferred to next tick via `setTimeout(..., 100)` to avoid Safari revoke-before-navigate
+- Load Eval Set button is now guarded against double-click during `batchBusy`
+- CSS `font-size: 14px` annotated as intentional developer-tool density choice
+- `:focus-visible` keyboard-navigation outlines added to `.btn`, `.chip`, `.chip-add`
 
 ## [0.1.0.0] - 2026-04-26
 

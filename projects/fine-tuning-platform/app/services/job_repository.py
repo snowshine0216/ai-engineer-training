@@ -26,11 +26,20 @@ class JsonJobRepository:
     def save(self, record: JobRecord) -> None:
         self.root.mkdir(parents=True, exist_ok=True)
         payload = {**asdict(record), "status": record.status.value}
-        self._path(record.job_id).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        dest = self._path(record.job_id)
+        tmp = dest.with_suffix(".tmp")
+        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.rename(dest)
 
     def get(self, job_id: str) -> JobRecord:
         payload = json.loads(self._path(job_id).read_text(encoding="utf-8"))
         return JobRecord(status=JobStatus(payload["status"]), job_id=payload["job_id"], dataset_id=payload["dataset_id"], command=payload["command"], artifact_paths=payload["artifact_paths"])
 
     def list(self) -> list[JobRecord]:
-        return [self.get(path.stem) for path in sorted(self.root.glob("*.json"))]
+        records = []
+        for path in sorted(self.root.glob("*.json")):
+            try:
+                records.append(self.get(path.stem))
+            except (json.JSONDecodeError, KeyError, ValueError):
+                pass  # skip corrupted job files rather than propagating a 500
+        return records

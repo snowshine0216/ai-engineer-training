@@ -81,3 +81,14 @@ def test_compare_returns_400_when_model_specs_empty(tmp_path):
     response = client.post("/api/predict-intent/compare", json={"text": "查天气", "model_specs": []})
 
     assert response.status_code == 400
+
+
+def test_compare_rejects_path_traversal_in_ref(tmp_path):
+    client = TestClient(create_app(root=tmp_path, infer_raw=lambda text, ref: _ok_response("x")))
+
+    response = client.post(
+        "/api/predict-intent/compare",
+        json={"text": "test", "model_specs": [{"kind": "base", "ref": "../../etc/passwd"}]},
+    )
+
+    assert response.status_code == 422

@@ -113,3 +113,22 @@ def test_patch_job_status_returns_404_when_not_found(tmp_path):
     response = client.patch("/api/jobs/job-aabbccddeeff/status", json={"status": "running"})
 
     assert response.status_code == 404
+
+
+def test_create_job_rejects_path_traversal_in_model_path(tmp_path):
+    client = TestClient(create_app(root=tmp_path))
+
+    response = client.post("/api/jobs", json={"dataset_id": "dataset-aabbccddeeff", "model_path": "../../etc/passwd"})
+
+    assert response.status_code == 422
+
+
+def test_list_jobs_skips_corrupted_job_files(tmp_path):
+    jobs_dir = tmp_path / "jobs"
+    jobs_dir.mkdir(parents=True)
+    (jobs_dir / "job-aabbccddeeff.json").write_text("not-json", encoding="utf-8")
+
+    response = TestClient(create_app(root=tmp_path)).get("/api/jobs")
+
+    assert response.status_code == 200
+    assert response.json() == {"jobs": []}

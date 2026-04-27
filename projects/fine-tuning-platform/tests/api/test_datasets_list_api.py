@@ -25,5 +25,7 @@ def test_list_datasets_returns_summary_after_upload(tmp_path):
     assert len(body["datasets"]) == 1
     assert body["datasets"][0]["dataset_id"].startswith("dataset-")
     assert body["datasets"][0]["row_count"] >= 1
-    assert body["datasets"][0]["train_path"].endswith("/train.jsonl")
-    assert body["datasets"][0]["eval_path"].endswith("/eval.jsonl")
+    assert "created_at" in body["datasets"][0]
+    # server-side filesystem paths must not be exposed to clients
+    assert "train_path" not in body["datasets"][0]
+    assert "eval_path" not in body["datasets"][0]

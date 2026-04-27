@@ -33,24 +33,36 @@ function workspace() {
     },
 
     async refreshJobs() {
-      const response = await fetch('/api/jobs');
-      const body = await response.json();
-      this.jobs = body.jobs ?? [];
+      try {
+        const response = await fetch('/api/jobs');
+        if (!response.ok) return;
+        const body = await response.json();
+        this.jobs = body.jobs ?? [];
+      } catch { /* silent — background refresh */ }
     },
     async refreshDatasets() {
-      const response = await fetch('/api/datasets');
-      const body = await response.json();
-      this.datasets = body.datasets ?? [];
+      try {
+        const response = await fetch('/api/datasets');
+        if (!response.ok) return;
+        const body = await response.json();
+        this.datasets = body.datasets ?? [];
+      } catch { /* silent — background refresh */ }
     },
     async refreshArtifacts() {
-      const response = await fetch('/api/artifacts');
-      const body = await response.json();
-      this.artifacts = body.artifacts ?? [];
+      try {
+        const response = await fetch('/api/artifacts');
+        if (!response.ok) return;
+        const body = await response.json();
+        this.artifacts = body.artifacts ?? [];
+      } catch { /* silent — background refresh */ }
     },
     async refreshBaseModels() {
-      const response = await fetch('/api/models/base');
-      const body = await response.json();
-      this.baseModels = body.models ?? [];
+      try {
+        const response = await fetch('/api/models/base');
+        if (!response.ok) return;
+        const body = await response.json();
+        this.baseModels = body.models ?? [];
+      } catch { /* silent — background refresh */ }
     },
     runningCount() {
       return this.jobs.filter(job => job.status === 'running').length;
@@ -115,7 +127,7 @@ function predict() {
 
     _allOptions() {
       const root = Alpine.$data(this.$root);
-      const base = (root?.baseModels ?? []).map(model => ({ id: model.path, label: model.name, kind: 'base' }));
+      const base = (root?.baseModels ?? []).map(model => ({ id: model.name, label: model.name, kind: 'base' }));
       const arts = (root?.artifacts ?? []).map(artifact => ({ id: artifact.artifact_id, label: artifact.label, kind: artifact.kind }));
       return [...base, ...arts];
     },
@@ -147,6 +159,7 @@ function predict() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: this.prompt, model_specs: specs }),
         });
+        if (!response.ok) return;
         const body = await response.json();
         this.results = body.results ?? [];
         this._summary = body.summary ?? { agreement: 0, majority: null };
@@ -228,7 +241,7 @@ function predictExpanded() {
 
     _allOptions() {
       const root = Alpine.$data(this.$root);
-      const base = (root?.baseModels ?? []).map(model => ({ id: model.path, label: model.name, kind: 'base' }));
+      const base = (root?.baseModels ?? []).map(model => ({ id: model.name, label: model.name, kind: 'base' }));
       const arts = (root?.artifacts ?? []).map(artifact => ({ id: artifact.artifact_id, label: artifact.label, kind: artifact.kind }));
       return [...base, ...arts];
     },
@@ -260,6 +273,7 @@ function predictExpanded() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: this.prompt, model_specs: specs }),
         });
+        if (!response.ok) return;
         const body = await response.json();
         this.results = body.results ?? [];
         this._summary = body.summary ?? { agreement: 0, majority: null };
@@ -298,7 +312,7 @@ function predictExpanded() {
       return this.batchPromptsRaw.split('\n').map(line => line.trim()).filter(Boolean);
     },
     async loadEvalSet() {
-      if (!this.batchDatasetId) return;
+      if (!this.batchDatasetId || this.batchBusy) return;
       const response = await fetch(`/api/datasets/${this.batchDatasetId}/eval`);
       if (!response.ok) return;
       const body = await response.json();
@@ -371,7 +385,7 @@ function predictExpanded() {
       link.href = url;
       link.download = 'predict-compare-batch.json';
       link.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 100);
     },
   };
 }

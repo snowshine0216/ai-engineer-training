@@ -19,4 +19,5 @@ def test_list_base_models_returns_directories(tmp_path):
     body = response.json()
     assert len(body["models"]) == 1
     assert body["models"][0]["name"] == "Qwen2.5-7B-Instruct"
-    assert body["models"][0]["path"].endswith("models/Qwen2.5-7B-Instruct")
+    # server-side filesystem paths must not be exposed to clients
+    assert "path" not in body["models"][0]

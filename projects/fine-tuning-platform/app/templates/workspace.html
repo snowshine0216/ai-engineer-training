@@ -80,8 +80,8 @@
               <span>Base model</span>
               <select x-model="modelPath" required>
                 <option value="" disabled>Select a base model…</option>
-                <template x-for="model in baseModels" :key="model.path">
-                  <option :value="model.path" x-text="model.name"></option>
+                <template x-for="model in baseModels" :key="model.name">
+                  <option :value="model.name" x-text="model.name"></option>
                 </template>
               </select>
             </label>
