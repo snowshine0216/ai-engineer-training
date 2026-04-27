@@ -11,6 +11,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from app.domain.artifacts import scan_artifacts
+from app.domain.base_models import scan_base_models
 from app.domain.datasets import parse_jsonl
 from app.domain.datasets_listing import scan_datasets
 from app.domain.jobs import JobStatus, transition
@@ -94,6 +95,11 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
     def list_datasets() -> dict[str, object]:
         summaries = scan_datasets(app_root / "training_data")
         return {"datasets": [summary.__dict__ for summary in summaries]}
+
+    @app.get("/api/models/base")
+    def list_base_models() -> dict[str, object]:
+        models = scan_base_models(app_root / "models")
+        return {"models": [model.__dict__ for model in models]}
 
     _DATASET_ID_RE = re.compile(r"^dataset-[a-f0-9]{12}$")
     _JOB_ID_RE = re.compile(r"^job-[a-f0-9]{12}$")
