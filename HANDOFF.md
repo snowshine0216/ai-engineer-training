@@ -1,13 +1,15 @@
 # Handoff Document
-*Last updated: 2026-04-27 11:35 CST (GMT+8)*
+*Last updated: 2026-04-27 (post-ship) CST (GMT+8)*
 
 ## Goal
 
 Redesign the fine-tuning platform UI from four bare Jinja pages into a single workspace dashboard. Three concrete user asks: (1) consolidate the four nav pages onto one page, (2) replace free-text dataset/artifact ID inputs with dropdown selectors, (3) support multi-model side-by-side prediction comparison (including the base model). The platform itself (SWIFT LoRA + FastAPI MVP) was shipped earlier — see commit `9223a75 feat: fine-tuning platform MVP`. This session is a UI/UX iteration on top of that.
 
-## Current Progress
+## Current Status
 
-This session completed brainstorming + design + implementation plan. **No application code was changed yet** — the next agent picks up at execution.
+**SHIPPED — PR #8 open on GitHub (`claude/zen-jang-0cc430` → `main`).** The Two-Pane Workspace UI redesign is fully implemented and reviewed. 112 tests passing. The next action is landing the PR.
+
+This session completed brainstorming → design → implementation plan → full TDD implementation → pre-landing review → adversarial security review → PR creation.
 
 - **Brainstorm** (visual companion in browser, three picks):
   - Layout: **B. Two-Pane Workspace** — Jobs primary on the left, action cards stacked on the right rail.
@@ -49,28 +51,14 @@ This session completed brainstorming + design + implementation plan. **No applic
 
 ## Next Steps
 
-1. **Pick execution mode** (the brainstorming flow ended at this gate):
-   - **Subagent-driven** (recommended) — fresh subagent per task, review between tasks. Use `superpowers:subagent-driven-development`.
-   - **Inline** — work the plan in the current session with checkpoints. Use `superpowers:executing-plans`.
+1. **Land PR #8** — `gh pr merge 8 --squash` (or use `/land-and-deploy`).
 
-2. **Start with Task 1** in `docs/superpowers/plans/2026-04-27-workspace-ui-redesign.md`: `Artifact` dataclass + `scan_artifacts` pure function + tests. Steps:
-   - 1.1 Write tests in `projects/fine-tuning-platform/tests/domain/test_artifacts.py`
-   - 1.2 Run `cd projects/fine-tuning-platform && uv run pytest tests/domain/test_artifacts.py -v` — confirm `ModuleNotFoundError`
-   - 1.3 Implement `projects/fine-tuning-platform/app/domain/artifacts.py`
-   - 1.4 Re-run, confirm pass
-   - 1.5 Commit
+2. **Optional follow-up** (deferred from plan): job-row click-to-expand drawer showing artifact paths, command, and log tail. Backend endpoints (`GET /api/jobs/{id}` and `/logs`) already supply the data — UI-only extension.
 
-3. **Test-runner convention:** all pytest commands assume `cd projects/fine-tuning-platform && uv run pytest …`. The pyproject sets `pythonpath = ["."]` so tests must run from inside the project dir.
-
-4. **Manual smoke test after each frontend task** (Tasks 9–14):
-   ```bash
-   cd projects/fine-tuning-platform && uv run uvicorn app.main:app --reload --port 8000
-   ```
-   Open `http://localhost:8000`, verify the section the task built renders correctly, then `Ctrl+C`.
-
-5. **After Task 15** (final polish): run the full suite (`cd projects/fine-tuning-platform && uv run pytest -v`) and walk the golden path described in Step 15.2 of the plan.
-
-6. **Optional follow-up** (deferred, not in plan): job-row click-to-expand drawer showing artifact paths, command, and log tail. Backend endpoints (`GET /api/jobs/{id}` and `/logs`) already supply the data — UI-only extension to Task 9.
+3. **3 INVESTIGATE items** from adversarial review (not blocking merge):
+   - TOCTOU race in `update_job_status` — single-worker dev server is safe; affects multi-worker deploys only.
+   - 100% agreement when all-but-one model fails — intentional design decision.
+   - `_DATASET_ID_RE`/`_JOB_ID_RE` defined mid-module — latent readability issue, not a security risk.
 
 ## Key Files & Locations
 
