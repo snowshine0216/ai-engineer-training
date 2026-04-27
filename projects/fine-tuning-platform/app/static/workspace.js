@@ -159,7 +159,11 @@ function predict() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: this.prompt, model_specs: specs }),
         });
-        if (!response.ok) return;
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          this.results = [{ model_id: 'server', error: body.detail ?? `HTTP ${response.status}` }];
+          return;
+        }
         const body = await response.json();
         this.results = body.results ?? [];
         this._summary = body.summary ?? { agreement: 0, majority: null };
@@ -273,7 +277,11 @@ function predictExpanded() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: this.prompt, model_specs: specs }),
         });
-        if (!response.ok) return;
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          this.results = [{ model_id: 'server', error: body.detail ?? `HTTP ${response.status}` }];
+          return;
+        }
         const body = await response.json();
         this.results = body.results ?? [];
         this._summary = body.summary ?? { agreement: 0, majority: null };
@@ -314,7 +322,13 @@ function predictExpanded() {
     async loadEvalSet() {
       if (!this.batchDatasetId || this.batchBusy) return;
       const response = await fetch(`/api/datasets/${this.batchDatasetId}/eval`);
-      if (!response.ok) return;
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        this.batchRows = [];
+        this.batchPromptsRaw = '';
+        console.error('Failed to load eval set:', body.detail ?? `HTTP ${response.status}`);
+        return;
+      }
       const body = await response.json();
       this.batchRows = (body.rows ?? []).map((row, index) => ({
         id: 'eval:' + index,

@@ -194,8 +194,15 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
 
     @app.post("/api/datasets", response_model=None)
     async def upload_dataset(training_dataset: UploadFile = File(...)) -> dict[str, object] | JSONResponse:
+        _MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
         try:
-            raw = (await training_dataset.read()).decode("utf-8")
+            raw_bytes = await training_dataset.read(_MAX_UPLOAD_BYTES + 1)
+            if len(raw_bytes) > _MAX_UPLOAD_BYTES:
+                return JSONResponse(
+                    status_code=413,
+                    content={"issues": [{"row_number": 0, "message": "file exceeds 50 MB limit"}]},
+                )
+            raw = raw_bytes.decode("utf-8")
         except UnicodeDecodeError:
             return JSONResponse(status_code=400, content={"issues": [{"row_number": 0, "message": "file must be UTF-8 encoded"}]})
         parsed = parse_jsonl(raw)
@@ -346,7 +353,7 @@ def create_app(root: Path | None = None, infer_raw: Callable[[str, str], str] | 
             ref = spec.ref
             if spec.kind == "base":
                 resolved = (app_root / "models" / spec.ref).resolve()
-                if not str(resolved).startswith(str((app_root / "models").resolve())):
+                if not resolved.is_relative_to((app_root / "models").resolve()):
                     return {
                         "model_id": spec.ref,
                         "kind": spec.kind,
