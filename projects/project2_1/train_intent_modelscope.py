@@ -1,9 +1,24 @@
+"""
+Intent classification fine-tuning via ModelScope.
+
+Model source : ModelScope Hub (snapshot_download) — faster in China than HuggingFace
+Device       : auto-detected
+  - Apple Silicon MPS  → bf16, no quantization (51 GB unified memory)
+  - CUDA (A10 / T4)    → 4-bit quantization via bitsandbytes
+  - CPU fallback       → fp32
+
+Run:
+    python train_intent_modelscope.py
+    # or on ModelScope Notebook: same command after uploading this file + data/
+"""
+
 import os
 import json
-import numpy as np
 import torch
+import numpy as np
 from datasets import load_dataset
 from sklearn.metrics import accuracy_score
+from modelscope import snapshot_download
 from transformers import (
     AutoTokenizer,
     AutoModelForSequenceClassification,
@@ -11,30 +26,45 @@ from transformers import (
     Trainer,
     DataCollatorWithPadding,
     EarlyStoppingCallback,
+    BitsAndBytesConfig,
 )
-from peft import LoraConfig, get_peft_model
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 
 # --- config ---
-MODEL_NAME = "Qwen/Qwen3-8B"
-OUTPUT_DIR = "./qwen3-intent-lora"
+MODEL_ID = "Qwen/Qwen3-8B"
+OUTPUT_DIR = "./qwen3-intent-lora-ms"
 MAX_LENGTH = 128
 BATCH_SIZE = 4
-EPOCHS = 15           # was 3 — early stopping will cut this short when needed
-LEARNING_RATE = 2e-5  # matches our confirmed safe value for this model family
+EPOCHS = 15
+LEARNING_RATE = 2e-5
 
+# --- device detection ---
+if torch.backends.mps.is_available():
+    DEVICE = "mps"
+    USE_4BIT = False
+    COMPUTE_DTYPE = torch.bfloat16
+elif torch.cuda.is_available():
+    DEVICE = "cuda"
+    USE_4BIT = True          # keeps Qwen3-8B within A10's 24 GB VRAM
+    COMPUTE_DTYPE = torch.float16
+else:
+    DEVICE = "cpu"
+    USE_4BIT = False
+    COMPUTE_DTYPE = torch.float32
+
+print(f"Device: {DEVICE} | 4-bit: {USE_4BIT} | dtype: {COMPUTE_DTYPE}")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-tokenizer = None  # set in main() before dataset preprocessing
+tokenizer = None
 
 
 def select_data_file(data_dir: str = "data") -> str:
-    """Prefer augmented dataset when available, fall back to original."""
     augmented = os.path.join(data_dir, "intent_data_augmented.jsonl")
     original = os.path.join(data_dir, "intent_data.jsonl")
     if os.path.exists(augmented):
         print(f"Using augmented dataset: {augmented}")
         return augmented
     print(f"Augmented dataset not found — using original: {original}")
-    print("Tip: run `python augment_data.py` first to improve training quality.")
+    print("Tip: run `python augment_data.py` first for better results.")
     return original
 
 
@@ -83,37 +113,78 @@ def load_intent_data():
     return dataset, len(intents), label2id, id2label
 
 
+def load_model(model_path: str, num_labels: int, label2id: dict, id2label: dict):
+    if USE_4BIT:
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=COMPUTE_DTYPE,
+            bnb_4bit_use_double_quant=True,
+        )
+        model = AutoModelForSequenceClassification.from_pretrained(
+            model_path,
+            num_labels=num_labels,
+            label2id=label2id,
+            id2label=id2label,
+            trust_remote_code=True,
+            quantization_config=bnb_config,
+            device_map="auto",
+        )
+        model = prepare_model_for_kbit_training(model)
+    else:
+        model = AutoModelForSequenceClassification.from_pretrained(
+            model_path,
+            num_labels=num_labels,
+            label2id=label2id,
+            id2label=id2label,
+            trust_remote_code=True,
+            dtype=COMPUTE_DTYPE,
+        ).to(DEVICE)
+
+    return model
+
+
 def main():
     global tokenizer
 
     try:
+        # Resolve model path:
+        #   1. ModelScope local cache (fast, no download needed)
+        #   2. ModelScope download (on cloud platform — fast CDN in China)
+        #   3. HuggingFace hub ID (local dev with HF cache)
+        print("Resolving model path...")
+        ms_cache = os.path.join(
+            os.environ.get("MODELSCOPE_CACHE", os.path.expanduser("~/.cache/modelscope/hub")),
+            MODEL_ID.replace("/", os.sep),
+        )
+        if os.path.isdir(ms_cache):
+            model_path = ms_cache
+            print(f"Model path (ModelScope cache): {model_path}")
+        elif os.environ.get("MODELSCOPE_DOMAIN") or torch.cuda.is_available():
+            # On ModelScope cloud: download via their CDN
+            print("Downloading via ModelScope CDN...")
+            model_path = snapshot_download(MODEL_ID)
+            print(f"Model path (downloaded): {model_path}")
+        else:
+            # Local dev: use HuggingFace cached model
+            model_path = MODEL_ID
+            print(f"Using HuggingFace hub ID: {model_path}")
+
         print("Loading tokenizer...")
-        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
+        tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
 
         print("Loading dataset...")
         dataset, num_labels, label2id, id2label = load_intent_data()
 
-        device = "mps" if torch.backends.mps.is_available() else "cpu"
-        print(f"Loading base model (bf16, device={device})...")
-        model = AutoModelForSequenceClassification.from_pretrained(
-            MODEL_NAME,
-            num_labels=num_labels,
-            label2id=label2id,
-            id2label=id2label,
-            trust_remote_code=True,
-            dtype=torch.bfloat16,
-        ).to(device)
+        print(f"Loading model ({DEVICE}, 4-bit={USE_4BIT})...")
+        model = load_model(model_path, num_labels, label2id, id2label)
         model.config.pad_token_id = tokenizer.pad_token_id
 
-        # Trial 1 LoRA config:
-        # - r=16, alpha=16 → ratio 1.0 (prevents the 4x LR amplification from baseline)
-        # - target_modules reduced from 7 → 4 attention projections (less capacity = less overfit)
-        # - dropout raised 0.1 → 0.2 for extra regularization on this tiny dataset
         lora_config = LoraConfig(
             r=16,
-            lora_alpha=16,
+            lora_alpha=16,                                          # ratio = 1.0
             target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
             lora_dropout=0.2,
             bias="none",
@@ -128,13 +199,14 @@ def main():
             per_device_train_batch_size=BATCH_SIZE,
             per_device_eval_batch_size=BATCH_SIZE,
             num_train_epochs=EPOCHS,
-            weight_decay=0.05,          # raised from 0.01 — stronger L2 regularization
-            warmup_steps=160,           # ~10% of total steps (426/4 batches × 15 epochs ≈ 1600)
+            weight_decay=0.05,
+            warmup_steps=160,
             eval_strategy="epoch",
             save_strategy="epoch",
             logging_steps=10,
-            bf16=True,
-            gradient_checkpointing=False,  # disabled: MPS has enough unified memory, avoids reentrant issues
+            bf16=(DEVICE in ("mps", "cpu") and COMPUTE_DTYPE == torch.bfloat16),
+            fp16=(DEVICE == "cuda"),
+            gradient_checkpointing=(DEVICE == "cuda"),   # only for CUDA; MPS has enough RAM
             report_to="none",
             load_best_model_at_end=True,
             metric_for_best_model="eval_accuracy",
@@ -165,7 +237,6 @@ def main():
         print("Saving model...")
         model.save_pretrained(OUTPUT_DIR)
         tokenizer.save_pretrained(OUTPUT_DIR)
-
         print(f"Saved to {OUTPUT_DIR}")
         print("Done!")
 
